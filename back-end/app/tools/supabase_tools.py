@@ -30,3 +30,30 @@ def get_drug_information(drug_name: str) -> str:
         return f"No information found for {drug_name}"
 
     return str(response.data)
+
+@tool
+def check_drug_safety(drug_name: str) -> str:
+    """Retrieve verified safety information about a medication."""
+
+    response = (
+        supabase
+        .table("drug_safety")
+        .select("*")
+        .ilike("drug_name", drug_name)
+        .execute()
+    )
+
+    if not response.data:
+        return f"No safety information found for {drug_name}."
+
+    safety_information = response.data
+
+    result = f"Safety information for {drug_name}:\n\n"
+
+    for item in safety_information:
+        result += f"Category: {item.get('category', 'N/A')}\n"
+        result += f"Information: {item.get('description', 'N/A')}\n"
+        result += f"Severity: {item.get('severity', 'N/A')}\n"
+        result += f"Source: {item.get('source', 'N/A')}\n\n"
+
+    return result
