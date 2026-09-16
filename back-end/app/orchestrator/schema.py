@@ -11,6 +11,10 @@ class TaskStep(BaseModel):
     )
 
 class ExecutionPlan(BaseModel):
+    extracted_drugs: List[str] = Field(
+        description="List of all unique pharmaceutical drug names, active compounds, or molecules extracted from the researcher's query."
+    )
+    
     reasoning: str = Field(
         description="Brief clinical justification for why this execution route and order was chosen."
     )
