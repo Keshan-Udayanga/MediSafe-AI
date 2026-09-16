@@ -2,6 +2,8 @@
 import React, { useState } from "react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import LoginPage from "./components/Login/loginPage";
+import ChatBox from "./components/Chat/chatBox";
+
 import "./App.css";
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID
@@ -20,7 +22,7 @@ function App() {
         {!user ? (
           <LoginPage onLoginSuccess={handleLoginSuccess} />
         ) : (
-          <div>Welcome, {user.username}! (Chat UI මෙතනට එනවා)</div>
+          <ChatBox user={user} />
         )}
       </div>
     </GoogleOAuthProvider>
