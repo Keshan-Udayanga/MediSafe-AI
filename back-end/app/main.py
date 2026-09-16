@@ -27,6 +27,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include the authentication routes
+app.include_router(auth_routes.router)
+
 Base.metadata.create_all(bind=engine)
 
 class ResearchRequest(BaseModel):
