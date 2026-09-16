@@ -25,7 +25,7 @@ def get_drug_information(drug_name: str) -> str:
         .ilike("name", drug_name)
         .execute()
     )
-
+    
     if not response.data:
         return f"No information found for {drug_name}"
 
@@ -37,7 +37,7 @@ def check_drug_safety(drug_name: str) -> str:
 
     response = (
         supabase
-        .table("drug_safety")
+        .table("drug_interactions")
         .select("*")
         .ilike("drug_name", drug_name)
         .execute()
