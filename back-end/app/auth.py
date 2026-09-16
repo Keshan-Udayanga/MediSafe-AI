@@ -17,7 +17,7 @@ def create_jwt_token(user_data: dict):
     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
 def verify_google_token(token: str):
-    #Google එකෙන් ආපු token එක validate කරනව
+    # Google එකෙන් ආපු token එක validate කරනව
     try:
         idinfo = id_token.verify_oauth2_token(
             token, google_requests.Request(), GOOGLE_CLIENT_ID
