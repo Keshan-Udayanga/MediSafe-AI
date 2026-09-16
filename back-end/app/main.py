@@ -1,8 +1,8 @@
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Any
+from pydantic import BaseModel, Field
+from typing import List
 from app.agents.factory import get_drug_info_agent, get_drug_safety_agent
 from app.orchestrator.router import generate_execution_plan
 from app.routes import auth_routes
@@ -36,14 +36,36 @@ Base.metadata.create_all(bind=engine)
 
 class ResearchRequest(BaseModel):
     query: str
+    target_drugs: List[str] = Field(default_factory=list)
+
+
+def get_agent_output(result) -> str:
+    raw_output = result["messages"][-1].content
+    if isinstance(raw_output, list) and raw_output:
+        first_item = raw_output[0]
+        return first_item.get("text", str(first_item)) if isinstance(first_item, dict) else str(first_item)
+    return str(raw_output)
+
+
+def build_agent_prompt(query: str, drugs: List[str], instruction: str) -> str:
+    drug_context = ", ".join(drugs) if drugs else "No specific drug names were supplied."
+    return (
+        f"Original researcher query: {query}\n"
+        f"Identified drugs: {drug_context}\n"
+        f"Required task: {instruction}\n"
+        "Use the available verified database tools and answer only from their results."
+    )
 
 @app.post("/api/agents/info")
 async def run_info_agent(payload: ResearchRequest):
     """Retrieves standard database records for selected compounds."""
     try:
         agent_executor = get_drug_info_agent()
-        input_prompt = f"Fetch drug specifications and basic records for: {', '.join(payload.target_drugs)}. Additional Context: {payload.query}"
-        
+        input_prompt = build_agent_prompt(
+            payload.query,
+            payload.target_drugs,
+            "Retrieve baseline drug information, uses, properties, and indications relevant to the query.",
+        )
 
         payload_data = {
             "messages": [
@@ -52,13 +74,7 @@ async def run_info_agent(payload: ResearchRequest):
         }
         result = await agent_executor.ainvoke(payload_data)
         # 1. Capture the raw response block
-        raw_output = result["messages"][-1].content
-        
-        # 2. Extract cleanly if LangChain wrapped the text response inside a list element
-        if isinstance(raw_output, list) and len(raw_output) > 0:
-            agent_output = raw_output[0].get("text", str(raw_output))
-        else:
-            agent_output = str(raw_output)
+        agent_output = get_agent_output(result)
         
         return {
             "agent_name": "Drug Information Agent", 
@@ -72,7 +88,11 @@ async def run_safety_agent(payload: ResearchRequest):
     """Analyzes strict combination parameters and safety classifications across selected drugs."""
     try:
         agent_executor = get_drug_safety_agent()
-        input_prompt = f"Run an extensive safety check and cross-reference interactions between: {', '.join(payload.target_drugs)}. Context/Researcher Query: {payload.query}"
+        input_prompt = build_agent_prompt(
+            payload.query,
+            payload.target_drugs,
+            "Check interactions, contraindications, adverse effects, and safety risks relevant to the query.",
+        )
         
         payload_data = {
             "messages": [
@@ -82,12 +102,7 @@ async def run_safety_agent(payload: ResearchRequest):
 
         result = await agent_executor.ainvoke(payload_data)
 
-        raw_output = result["messages"][-1].content
-
-        if isinstance(raw_output, list) and len(raw_output) > 0:
-            agent_output = raw_output[0].get("text", str(raw_output))
-        else:
-            agent_output = str(raw_output)
+        agent_output = get_agent_output(result)
         
         return {
             "agent_name": "Drug Interaction Agent", 
@@ -102,7 +117,7 @@ async def run_safety_agent(payload: ResearchRequest):
 async def orchestrate_research(payload: ResearchRequest):
     try:
         # 1. Ask the Orchestrator to plan the route
-        plan = generate_execution_plan(payload.query)
+        plan = generate_execution_plan(payload.query, payload.target_drugs)
         print("--- Orchestration Plan Generated ---")
         print(f"Extracted Drugs: {plan.extracted_drugs}")
         print(f"Reasoning: {plan.reasoning}")
@@ -125,7 +140,11 @@ async def orchestrate_research(payload: ResearchRequest):
                 
             print(agent_name)
             # Combine the orchestrator's specific instruction with previous outputs
-            agent_input = f"{step.task_instruction}\n\nContext gathered so far:\n{accumulated_context}"
+            agent_input = build_agent_prompt(
+                payload.query,
+                plan.extracted_drugs,
+                f"{step.task_instruction}\nContext gathered so far:\n{accumulated_context}",
+            )
     
             payload_data = {
                 "messages": [
@@ -134,12 +153,7 @@ async def orchestrate_research(payload: ResearchRequest):
             }
             # Execute the specific agent
             result = await agent_executor.ainvoke(payload_data)
-            raw_output = result["messages"][-1].content
-
-            if isinstance(raw_output, list) and len(raw_output) > 0:
-                agent_output = raw_output[0].get("text", str(raw_output))
-            else:
-                agent_output = str(raw_output)
+            agent_output = get_agent_output(result)
 
             
             # Update history context for subsequent agents in the flow
@@ -152,9 +166,10 @@ async def orchestrate_research(payload: ResearchRequest):
                 "output": agent_output
             })
             
+        final_answer = execution_logs[-1]["output"] if execution_logs else "No agent execution step was produced."
         return {
             "orchestrator_reasoning": plan.reasoning,
-            "final_consolidated_answer": accumulated_context,
+            "final_consolidated_answer": final_answer,
             "detailed_steps": execution_logs
         }
         

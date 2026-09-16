@@ -12,6 +12,7 @@ def create_jwt_token(user_data: dict):
     payload = {
         "sub": user_data["email"],
         "username": user_data["username"],
+        "role": user_data.get("role", "user"),
         "exp": datetime.utcnow() + timedelta(hours=24)
     }
     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")

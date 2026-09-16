@@ -20,9 +20,9 @@ def get_drug_information(drug_name: str) -> str:
     
     response = (
         supabase
-        .table("drugs")
+        .table("drug_information_documents")
         .select("*")
-        .ilike("name", drug_name)
+        .ilike("name", f"%{drug_name}%")
         .execute()
     )
     
@@ -40,7 +40,7 @@ def check_drug_safety(drug_name: str) -> str:
         supabase
         .table("drug_interactions")
         .select("*")
-        .or_(f"drug_a.ilike.{drug_name},drug_b.ilike.{drug_name}")
+        .or_(f"drug_a.ilike.%{drug_name}%,drug_b.ilike.%{drug_name}%")
         .execute()
     )
 

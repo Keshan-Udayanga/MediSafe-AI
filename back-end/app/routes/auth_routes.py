@@ -1,21 +1,49 @@
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
 from pydantic import BaseModel
 
-from app.auth import (
-    verify_google_token,
-    create_jwt_token
-)
+from app.auth import SECRET_KEY, create_jwt_token, verify_google_token
 
 from app.database import get_db
 from app.models import User
 
 
 router = APIRouter()
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 class GoogleLoginRequest(BaseModel):
 
     token: str
+
+
+def get_authenticated_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db=Depends(get_db),
+):
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=["HS256"])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+    user = db.query(User).filter(User.email == payload.get("sub")).first()
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+
+@router.get("/api/v1/auth/me")
+def current_user(user: User = Depends(get_authenticated_user)):
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "role": user.role,
+    }
 
 
 @router.post("/auth/google-login")
