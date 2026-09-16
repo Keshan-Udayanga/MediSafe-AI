@@ -7,6 +7,7 @@ from typing import List, Any
 from app.agents.factory import get_drug_info_agent, get_drug_safety_agent
 from app.orchestrator.router import generate_execution_plan
 from app.routes import auth_routes
+from app.routes import document_routes
 from app.database import engine, Base
 from app import models 
 
@@ -27,6 +28,7 @@ app.add_middleware(
 
 # Include the authentication routes
 app.include_router(auth_routes.router)
+app.include_router(document_routes.router)
 
 
 # ← මේ line එකෙන් models.py එකේ define කරපු tables ඔක්කොම, database එකේ physically create වෙනවා

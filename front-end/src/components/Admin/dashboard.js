@@ -1,11 +1,106 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  deleteDrugInformationDocument,
+  deleteSafetyDocument,
+  getDrugInformationDocuments,
+  getSafetyDocuments,
+  uploadDrugInformationDocument,
+  uploadSafetyDocument,
+} from "../Services/documentService";
 import "./dashboard.css";
 
 function AdminDashboard({ user, onLogout }) {
-  const [darkMode, setDarkMode] = useState(false);
+  const navigate = useNavigate();
+  const [documents, setDocuments] = useState([]);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
+  const [documentType, setDocumentType] = useState("drug");
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentActionLoading, setDocumentActionLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState("");
+  const [documentsSuccess, setDocumentsSuccess] = useState("");
+  const fileInputRef = useRef(null);
+
+  const loadDocuments = async () => {
+    setDocumentsLoading(true);
+    setDocumentsError("");
+
+    try {
+      setDocuments(
+        await (documentType === "safety"
+          ? getSafetyDocuments()
+          : getDrugInformationDocuments())
+      );
+    } catch (error) {
+      setDocumentsError(error.message);
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  const openDocuments = (type = "drug") => {
+    setDocumentType(type);
+    setDocumentsOpen(true);
+    setDocumentsSuccess("");
+    setDocumentsLoading(true);
+    setDocumentsError("");
+
+    const load = type === "safety" ? getSafetyDocuments : getDrugInformationDocuments;
+    load()
+      .then(setDocuments)
+      .catch((error) => setDocumentsError(error.message))
+      .finally(() => setDocumentsLoading(false));
+  };
+
+  const handleFileSelected = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setDocumentsError("Only PDF files are accepted.");
+      return;
+    }
+
+    setDocumentActionLoading(true);
+    setDocumentsError("");
+    setDocumentsSuccess("");
+
+    try {
+      await (documentType === "safety"
+        ? uploadSafetyDocument(file)
+        : uploadDrugInformationDocument(file));
+      await loadDocuments();
+      setDocumentsSuccess(`${file.name} was uploaded successfully.`);
+    } catch (error) {
+      setDocumentsError(error.message);
+    } finally {
+      setDocumentActionLoading(false);
+    }
+  };
+
+  const handleDelete = async (documentId, title) => {
+    if (!window.confirm(`Delete ${title}?`)) return;
+
+    setDocumentActionLoading(true);
+    setDocumentsError("");
+    setDocumentsSuccess("");
+
+    try {
+      await (documentType === "safety"
+        ? deleteSafetyDocument(documentId)
+        : deleteDrugInformationDocument(documentId));
+      await loadDocuments();
+      setDocumentsSuccess(`${title} was deleted successfully.`);
+    } catch (error) {
+      setDocumentsError(error.message);
+    } finally {
+      setDocumentActionLoading(false);
+    }
+  };
 
   return (
-    <div className={`admin-dashboard ${darkMode ? "dark" : ""}`}>
+    <div className="admin-dashboard">
 
       {/* Sidebar */}
       <aside className="sidebar">
@@ -26,17 +121,17 @@ function AdminDashboard({ user, onLogout }) {
             Dashboard
           </button>
 
-          <button className="nav-item">
+          <button className="nav-item" onClick={() => navigate("/home")}>
             <span>🤖</span>
             Chatbot
           </button>
 
-          <button className="nav-item">
+          <button className="nav-item" onClick={() => openDocuments("drug")}>
             <span>📄</span>
             Drug Information
           </button>
 
-          <button className="nav-item">
+          <button className="nav-item" onClick={() => openDocuments("safety")}>
             <span>🛡️</span>
             Safety Documents
           </button>
@@ -44,14 +139,6 @@ function AdminDashboard({ user, onLogout }) {
         </nav>
 
         <div className="sidebar-bottom">
-
-          <button
-            className="theme-btn"
-            onClick={() => setDarkMode(!darkMode)}
-          >
-            <span>{darkMode ? "☀️" : "🌙"}</span>
-            {darkMode ? "Light Mode" : "Dark Mode"}
-          </button>
 
           <button className="logout-btn" onClick={onLogout}>
             <span>↪</span>
@@ -167,7 +254,7 @@ function AdminDashboard({ user, onLogout }) {
               information retrieval and safety responses.
             </p>
 
-            <button className="primary-btn">
+            <button className="primary-btn" onClick={() => navigate("/home")}>
               Open Chatbot
               <span>→</span>
             </button>
@@ -197,7 +284,7 @@ function AdminDashboard({ user, onLogout }) {
               used by the Information Agent.
             </p>
 
-            <button className="secondary-btn">
+            <button className="secondary-btn" onClick={() => openDocuments("drug")}>
               Manage Documents
               <span>→</span>
             </button>
@@ -227,7 +314,7 @@ function AdminDashboard({ user, onLogout }) {
               by the Safety Agent.
             </p>
 
-            <button className="secondary-btn">
+            <button className="secondary-btn" onClick={() => openDocuments("safety")}>
               Manage Documents
               <span>→</span>
             </button>
@@ -258,6 +345,52 @@ function AdminDashboard({ user, onLogout }) {
         </section>
 
       </main>
+
+      {documentsOpen && (
+        <div className="document-modal-backdrop" role="presentation" onClick={() => setDocumentsOpen(false)}>
+          <section className="document-modal" role="dialog" aria-modal="true" aria-labelledby="document-modal-title" onClick={(event) => event.stopPropagation()}>
+            <div className="document-modal-header">
+              <div>
+                <p className="document-modal-eyebrow">
+                  {documentType === "safety" ? "Safety Documents" : "Drug Information"}
+                </p>
+                <h2 id="document-modal-title">Manage Documents</h2>
+                <p>PDF files stored in the knowledge base.</p>
+              </div>
+              <button className="modal-close-btn" onClick={() => setDocumentsOpen(false)} aria-label="Close document manager">×</button>
+            </div>
+
+            <div className="document-modal-actions">
+              <span>{documents.length} document{documents.length === 1 ? "" : "s"}</span>
+              <button className="add-document-btn" onClick={() => fileInputRef.current?.click()} disabled={documentActionLoading}>
+                {documentActionLoading ? "Working..." : "+ Add New PDF"}
+              </button>
+              <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" onChange={handleFileSelected} hidden />
+            </div>
+
+            {documentsError && <div className="document-status error">{documentsError}</div>}
+            {documentsSuccess && <div className="document-status success">{documentsSuccess}</div>}
+
+            <div className="document-list" aria-live="polite">
+              {documentsLoading ? (
+                <div className="document-empty-state">Loading documents...</div>
+              ) : documents.length === 0 ? (
+                <div className="document-empty-state">
+                  No {documentType === "safety" ? "safety" : "drug information"} PDFs have been uploaded yet.
+                </div>
+              ) : (
+                documents.map((document) => (
+                  <div className="document-row" key={document.id}>
+                    <div className="document-file-icon">PDF</div>
+                    <span className="document-title" title={document.title}>{document.title}</span>
+                    <button className="delete-document-btn" onClick={() => handleDelete(document.id, document.title)} disabled={documentActionLoading}>Delete</button>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
     </div>
   );
