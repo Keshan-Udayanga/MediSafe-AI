@@ -1,8 +1,16 @@
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Any
 from app.agents.factory import get_drug_info_agent, get_drug_safety_agent
+from app.orchestrator.router import generate_execution_plan
+
+import logging
+
+# Suppress AFC deprecation warnings emitted by google-genai
+logging.getLogger("google_genai").setLevel(logging.ERROR)
+logging.getLogger("google_genai._models").setLevel(logging.ERROR)
+logging.getLogger("google.generativeai").setLevel(logging.ERROR)
 
 app = FastAPI(title="Pharmaceutical Multi-Agent Safety API")
 
@@ -69,3 +77,62 @@ async def run_safety_agent(payload: ResearchRequest):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Safety Agent execution failed: {str(e)}")
+
+
+@app.post("/api/orchestrate")
+async def orchestrate_research(payload: ResearchRequest):
+    try:
+        # 1. Ask the Orchestrator to plan the route
+        plan = generate_execution_plan(payload.query, payload.target_drugs)
+        print(plan)
+        # Keep track of the shared context as agents run
+        accumulated_context = f"Initial Researcher Goal: {payload.query}\n\n"
+        execution_logs = []
+        
+        # 2. Execute the steps sequentially
+        for index, step in enumerate(plan.steps):
+            if step.agent_target == "info_agent":
+                agent_executor = get_drug_info_agent()
+                agent_name = "Drug Information Agent"
+            elif step.agent_target == "safety_agent":
+                agent_executor = get_drug_safety_agent()
+                agent_name = "Drug Safety & Interaction Agent"
+            else:
+                continue
+                
+            # Combine the orchestrator's specific instruction with previous outputs
+            agent_input = f"{step.task_instruction}\n\nContext gathered so far:\n{accumulated_context}"
+            print('\n', agent_input)
+            payload_data = {
+            "messages": [
+                {"role": "user", "content": agent_input}
+            ]
+        }
+            # Execute the specific agent
+            result = await agent_executor.ainvoke(payload_data)
+            raw_output = result["messages"][-1].content
+
+            if isinstance(raw_output, list) and len(raw_output) > 0:
+                agent_output = raw_output[0].get("text", str(raw_output))
+            else:
+                agent_output = str(raw_output)
+
+            
+            # Update history context for subsequent agents in the flow
+            accumulated_context += f"--- Output from Step {index+1} ({agent_name}) ---\n{agent_output}\n\n"
+            
+            execution_logs.append({
+                "step": index + 1,
+                "agent": agent_name,
+                "instruction_given": step.task_instruction,
+                "output": agent_output
+            })
+            
+        return {
+            "orchestrator_reasoning": plan.reasoning,
+            "final_consolidated_answer": accumulated_context,
+            "detailed_steps": execution_logs
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Orchestration pipeline failed: {str(e)}")
