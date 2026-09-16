@@ -16,7 +16,6 @@ app = FastAPI(title="Pharmaceutical Multi-Agent Safety API")
 
 class ResearchRequest(BaseModel):
     query: str
-    target_drugs: List[str]
 
 @app.post("/api/agents/info")
 async def run_info_agent(payload: ResearchRequest):
@@ -83,10 +82,14 @@ async def run_safety_agent(payload: ResearchRequest):
 async def orchestrate_research(payload: ResearchRequest):
     try:
         # 1. Ask the Orchestrator to plan the route
-        plan = generate_execution_plan(payload.query, payload.target_drugs)
-        print(plan)
+        plan = generate_execution_plan(payload.query)
+        print("--- Orchestration Plan Generated ---")
+        print(f"Extracted Drugs: {plan.extracted_drugs}")
+        print(f"Reasoning: {plan.reasoning}")
         # Keep track of the shared context as agents run
-        accumulated_context = f"Initial Researcher Goal: {payload.query}\n\n"
+        # Track shared context as agents execute
+        accumulated_context = f"Initial Researcher Goal: {payload.query}\n"
+        accumulated_context += f"Identified Compounds: {', '.join(plan.extracted_drugs)}\n\n"
         execution_logs = []
         
         # 2. Execute the steps sequentially
@@ -100,14 +103,15 @@ async def orchestrate_research(payload: ResearchRequest):
             else:
                 continue
                 
+            print(agent_name)
             # Combine the orchestrator's specific instruction with previous outputs
             agent_input = f"{step.task_instruction}\n\nContext gathered so far:\n{accumulated_context}"
-            print('\n', agent_input)
+    
             payload_data = {
-            "messages": [
-                {"role": "user", "content": agent_input}
-            ]
-        }
+                "messages": [
+                    {"role": "user", "content": agent_input}
+                ]
+            }
             # Execute the specific agent
             result = await agent_executor.ainvoke(payload_data)
             raw_output = result["messages"][-1].content
