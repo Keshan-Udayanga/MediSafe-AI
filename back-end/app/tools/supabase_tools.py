@@ -34,12 +34,13 @@ def get_drug_information(drug_name: str) -> str:
 @tool
 def check_drug_safety(drug_name: str) -> str:
     """Retrieve verified safety information about a medication."""
-
+    
+    # FIX: Query both 'drug_a' and 'drug_b' columns using matching syntax
     response = (
         supabase
         .table("drug_interactions")
         .select("*")
-        .ilike("drug_name", drug_name)
+        .or_(f"drug_a.ilike.{drug_name},drug_b.ilike.{drug_name}")
         .execute()
     )
 
@@ -47,13 +48,12 @@ def check_drug_safety(drug_name: str) -> str:
         return f"No safety information found for {drug_name}."
 
     safety_information = response.data
-
     result = f"Safety information for {drug_name}:\n\n"
 
+    # FIX: Map properties strictly to existing database columns
     for item in safety_information:
-        result += f"Category: {item.get('category', 'N/A')}\n"
-        result += f"Information: {item.get('description', 'N/A')}\n"
+        result += f"Paired Compounds: {item.get('drug_a')} + {item.get('drug_b')}\n"
         result += f"Severity: {item.get('severity', 'N/A')}\n"
-        result += f"Source: {item.get('source', 'N/A')}\n\n"
+        result += f"Information/Description: {item.get('description', 'N/A')}\n\n"
 
     return result
