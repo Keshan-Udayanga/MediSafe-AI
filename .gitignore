@@ -5,6 +5,11 @@ __pycache__/
 # Environment variables
 .env
 
+venv/
+.venv/
+env/
+back-end/venv
+
 # Node
 node_modules/
 dist/
