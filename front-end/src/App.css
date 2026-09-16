@@ -1,38 +1,24 @@
-.App {
-  text-align: center;
+/* App.css - Global Dark Blue Theme Variables */
+:root {
+  --bg-primary: #0a1128;       /* darkest background */
+  --bg-secondary: #16213e;     /* card/box background */
+  --bg-input: #1f2b4d;         /* input field background */
+  --accent-blue: #3a6ea5;      /* buttons, highlights */
+  --accent-blue-hover: #4d84c4;
+  --text-primary: #e8eef7;     /* main text - light */
+  --text-secondary: #9db2d4;   /* subtitle text */
+  --border-color: #2a3b5e;
+  --error-color: #e57373;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+body {
+  background-color: var(--bg-primary);
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color: var(--text-primary);
 }
