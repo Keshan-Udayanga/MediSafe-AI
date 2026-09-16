@@ -10,15 +10,8 @@ load_dotenv(dotenv_path=env_path)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not DATABASE_URL:
-    raise ValueError(
-        f"DATABASE_URL is missing or returned None! Check that a '.env' file exists at '{env_path}' containing DATABASE_URL=..."
-    )
-
 # Create the database engine
 engine = create_engine(DATABASE_URL)
-
-# Create a session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base class - models.py එකේ tables (User, Drug, etc.) define කරන්න use කරනවා

@@ -1,5 +1,4 @@
-# FastAPI app entry point
-# app/main.py
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -9,13 +8,16 @@ from app.orchestrator.router import generate_execution_plan
 from app.routes import auth_routes
 from app.routes import document_routes
 from app.database import engine, Base
-from app import models 
-
+from app import models
 
 import logging
 
-app = FastAPI(title="Pharmaceutical Multi-Agent Safety API")
+# Suppress AFC deprecation warnings emitted by google-genai
+logging.getLogger("google_genai").setLevel(logging.ERROR)
+logging.getLogger("google_genai._models").setLevel(logging.ERROR)
+logging.getLogger("google.generativeai").setLevel(logging.ERROR)
 
+app = FastAPI(title="Pharmaceutical Multi-Agent Safety API")
 
 # Add CORS middleware
 app.add_middleware(
@@ -30,27 +32,10 @@ app.add_middleware(
 app.include_router(auth_routes.router)
 app.include_router(document_routes.router)
 
-
-# ← මේ line එකෙන් models.py එකේ define කරපු tables ඔක්කොම, database එකේ physically create වෙනවා
 Base.metadata.create_all(bind=engine)
-
-# check if the backend is running
-@app.get("/")
-def root():
-    return {
-        "message": "MediSafe AI Backend is running"
-    }
-
-# Suppress AFC deprecation warnings emitted by google-genai
-logging.getLogger("google_genai").setLevel(logging.ERROR)
-logging.getLogger("google_genai._models").setLevel(logging.ERROR)
-logging.getLogger("google.generativeai").setLevel(logging.ERROR)
-
-
 
 class ResearchRequest(BaseModel):
     query: str
-    target_drugs: List[str]
 
 @app.post("/api/agents/info")
 async def run_info_agent(payload: ResearchRequest):
@@ -117,10 +102,14 @@ async def run_safety_agent(payload: ResearchRequest):
 async def orchestrate_research(payload: ResearchRequest):
     try:
         # 1. Ask the Orchestrator to plan the route
-        plan = generate_execution_plan(payload.query, payload.target_drugs)
-        print(plan)
+        plan = generate_execution_plan(payload.query)
+        print("--- Orchestration Plan Generated ---")
+        print(f"Extracted Drugs: {plan.extracted_drugs}")
+        print(f"Reasoning: {plan.reasoning}")
         # Keep track of the shared context as agents run
-        accumulated_context = f"Initial Researcher Goal: {payload.query}\n\n"
+        # Track shared context as agents execute
+        accumulated_context = f"Initial Researcher Goal: {payload.query}\n"
+        accumulated_context += f"Identified Compounds: {', '.join(plan.extracted_drugs)}\n\n"
         execution_logs = []
         
         # 2. Execute the steps sequentially
@@ -134,14 +123,15 @@ async def orchestrate_research(payload: ResearchRequest):
             else:
                 continue
                 
+            print(agent_name)
             # Combine the orchestrator's specific instruction with previous outputs
             agent_input = f"{step.task_instruction}\n\nContext gathered so far:\n{accumulated_context}"
-            print('\n', agent_input)
+    
             payload_data = {
-            "messages": [
-                {"role": "user", "content": agent_input}
-            ]
-        }
+                "messages": [
+                    {"role": "user", "content": agent_input}
+                ]
+            }
             # Execute the specific agent
             result = await agent_executor.ainvoke(payload_data)
             raw_output = result["messages"][-1].content
