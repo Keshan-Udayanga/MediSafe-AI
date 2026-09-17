@@ -38,7 +38,7 @@ def check_drug_safety(drug_name: str) -> str:
     # FIX: Query both 'drug_a' and 'drug_b' columns using matching syntax
     response = (
         supabase
-        .table("drug_interactions")
+        .table("safety_documents")
         .select("*")
         .or_(f"drug_a.ilike.%{drug_name}%,drug_b.ilike.%{drug_name}%")
         .execute()

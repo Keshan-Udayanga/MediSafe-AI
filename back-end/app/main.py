@@ -11,6 +11,7 @@ from app.database import engine, Base
 from app import models
 
 import logging
+import traceback
 
 # Suppress AFC deprecation warnings emitted by google-genai
 logging.getLogger("google_genai").setLevel(logging.ERROR)
@@ -174,4 +175,13 @@ async def orchestrate_research(payload: ResearchRequest):
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Orchestration pipeline failed: {str(e)}")
+        print("\n===== ORCHESTRATION ERROR =====")
+        print(f"Error Type: {type(e).__name__}")
+        print(f"Error Message: {e}")
+        traceback.print_exc()
+        print("===== END ERROR =====\n")
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Orchestration pipeline failed: {type(e).__name__}: {str(e)}"
+        )
