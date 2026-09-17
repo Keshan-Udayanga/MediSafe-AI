@@ -104,6 +104,23 @@ async def orchestrate_research(payload: ResearchRequest):
         print("--- Orchestration Plan Generated ---")
         print(f"Extracted Drugs: {plan.extracted_drugs}")
         print(f"Reasoning: {plan.reasoning}")
+
+         # RULE 1: Ignore non-drug related inputs entirely
+        if not plan.is_drug_related:
+            return {
+                "status": "ignored",
+                "message": "Query ignored. This system only handles queries related to pharmaceutical research and drug data.",
+                "orchestrator_reasoning": plan.reasoning
+            }
+            
+        # RULE 2: Drug related, but missing required entities
+        if not plan.extracted_drugs or len(plan.extracted_drugs) == 0:
+            return {
+                "status": "validation_failed",
+                "message": "Please state any specific drug name or compound to continue.",
+                "orchestrator_reasoning": plan.reasoning
+            }
+        
         # Keep track of the shared context as agents run
         # Track shared context as agents execute
         accumulated_context = f"Initial Researcher Goal: {payload.query}\n"
@@ -132,10 +149,26 @@ async def orchestrate_research(payload: ResearchRequest):
             }
             # Execute the specific agent
             result = await agent_executor.ainvoke(payload_data)
-            raw_output = result["messages"][-1].content
 
-            if isinstance(raw_output, list) and len(raw_output) > 0:
-                agent_output = raw_output[0].get("text", str(raw_output))
+            last_message = result["messages"][-1]
+            
+            # 2. Extract content checking both object attributes and dictionary keys safely
+            if hasattr(last_message, "content"):
+                raw_output = last_message.content
+            elif isinstance(last_message, dict):
+                raw_output = last_message.get("content", "")
+            else:
+                raw_output = str(last_message)
+
+            if isinstance(raw_output, list):
+                # Handle block structures (e.g. text blocks from Gemini/OpenAI tools)
+                parts = []
+                for block in raw_output:
+                    if isinstance(block, dict) and "text" in block:
+                        parts.append(block["text"])
+                    elif isinstance(block, str):
+                        parts.append(block)
+                agent_output = "\n".join(parts) if parts else str(raw_output)
             else:
                 agent_output = str(raw_output)
 
@@ -151,10 +184,15 @@ async def orchestrate_research(payload: ResearchRequest):
             })
             
         return {
+            "status": "success",
+            "extracted_drugs": plan.extracted_drugs,
             "orchestrator_reasoning": plan.reasoning,
             "final_consolidated_answer": accumulated_context,
             "detailed_steps": execution_logs
         }
         
     except Exception as e:
+        import traceback
+        print("---!!! DETAILED ORCHESTRATION PIPELINE CRASH !!!---")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Orchestration pipeline failed: {str(e)}")

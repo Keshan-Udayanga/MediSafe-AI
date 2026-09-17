@@ -11,6 +11,10 @@ class TaskStep(BaseModel):
     )
 
 class ExecutionPlan(BaseModel):
+    is_drug_related: bool = Field(
+        description="Set to True if the query is strictly related to pharmacology, medicine, or biochemistry. Set to False for off-topic queries."
+    )
+    
     extracted_drugs: List[str] = Field(
         description="List of all unique pharmaceutical drug names, active compounds, or molecules extracted from the researcher's query."
     )

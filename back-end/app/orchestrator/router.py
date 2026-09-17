@@ -14,16 +14,21 @@ def generate_execution_plan(researcher_query: str) -> ExecutionPlan:
         (
             "system",
             "You are the Lead Scientific Orchestrator for a pharmaceutical multi-agent system.\n"
-            "Your job is two-fold:\n"
-            "1. Parse the researcher's query and extract all specific medication or drug names into 'extracted_drugs'.\n"
-            "2. Break down the query into an ordered execution plan using the available agents.\n\n"
-            "Available Agents:\n"
-            "- info_agent: Best for fetching baseline molecular info, indications, and general properties from the database.\n"
-            "- safety_agent: Best for cross-referencing combination interactions, warnings, and adverse reactions.\n\n"
-            "Guidelines:\n"
-            "- Ensure the extracted drug names are normalized (e.g., capitalized consistently or kept as standard generic names).\n"
-            "- If no specific drugs are found, leave 'extracted_drugs' empty but direct the agent to handle the query safely.\n"
-            "- Make sure the 'task_instruction' for each step explicitly tells the target agent which extracted drugs to look up."
+            "Your job is to analyze the researcher's query and enforce the following strict clinical routing rules:\n\n"
+            
+            "1. RELEVANCE FILTER:\n"
+            "- Evaluate if the query is strictly about medicine, pharmacology, or health. "
+            "If it is about unrelated topics (e.g., coding, sports, weather, jokes), set 'is_drug_related' to false, leave 'extracted_drugs' and 'steps' completely empty.\n\n"
+            
+            "2. ENTITY EXTRACTION:\n"
+            "- Extract all specific drug names, active ingredients, or chemical compounds into 'extracted_drugs'.\n"
+            "- If the query is related to medicine but NO specific drug or compound is named anywhere in the prompt, leave 'extracted_drugs' and 'steps' empty.\n\n"
+            
+            "3. ROUTING AND AGENT SELECTION:\n"
+            "- Available Agents: 'info_agent' (database lookups/properties) and 'safety_agent' (interactions/adverse effects).\n"
+            "- CRITICAL RULE: If the user is ONLY looking for general drug properties or information, DO NOT use or schedule the 'safety_agent'. Schedule the 'info_agent' only.\n"
+            "- If the user specifically asks about safety, warnings, or cross-interactions between multiple drugs, schedule the 'safety_agent' (either alone or after the info_agent).\n"
+            "- Make sure the 'task_instruction' explicitly mentions which extracted drugs to process."
         ),
         ("human", "Researcher Query: {query}")
     ])

@@ -1,4 +1,5 @@
 import os 
+import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -9,22 +10,27 @@ load_dotenv(dotenv_path=env_path)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-supabase: Client = create_client(
-    SUPABASE_URL,
-    SUPABASE_KEY
-)
+
+def get_supabase_client() -> Client:
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 @tool
-def get_drug_information(drug_name: str) -> str:
+async def get_drug_information(drug_name: str) -> str:
     """Retrieve verified information about a medication."""
-    
-    response = (
-        supabase
-        .table("drugs")
-        .select("*")
-        .ilike("name", drug_name)
-        .execute()
-    )
+
+    def _query():
+        # Instantiate an isolated client instance for this specific database operation
+        local_supabase = get_supabase_client()
+        return (
+            local_supabase
+            .table("drugs")
+            .select("*")
+            .ilike("name", drug_name)
+            .execute()
+        )
+
+    # Run safely in a background thread
+    response = await asyncio.to_thread(_query)
     
     if not response.data:
         return f"No information found for {drug_name}"
@@ -32,17 +38,22 @@ def get_drug_information(drug_name: str) -> str:
     return str(response.data)
 
 @tool
-def check_drug_safety(drug_name: str) -> str:
+async def check_drug_safety(drug_name: str) -> str:
     """Retrieve verified safety information about a medication."""
     
-    # FIX: Query both 'drug_a' and 'drug_b' columns using matching syntax
-    response = (
-        supabase
-        .table("drug_interactions")
-        .select("*")
-        .or_(f"drug_a.ilike.{drug_name},drug_b.ilike.{drug_name}")
-        .execute()
-    )
+    def _query():
+        # Instantiate an isolated client instance for this specific database operation
+        local_supabase = get_supabase_client()
+        return (
+            local_supabase
+            .table("drug_interactions")
+            .select("*")
+            .or_(f"drug_a.ilike.{drug_name},drug_b.ilike.{drug_name}")
+            .execute()
+        )
+
+    # Run safely in a background thread
+    response = await asyncio.to_thread(_query)
 
     if not response.data:
         return f"No safety information found for {drug_name}."
