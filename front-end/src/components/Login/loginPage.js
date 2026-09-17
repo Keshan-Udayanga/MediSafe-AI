@@ -34,11 +34,19 @@ function LoginPage({ onLoginSuccess }) {
   // Google Login Success handle කරනවා
   const handleGoogleSuccess = async (credentialResponse) => {
     setError("");
+
+    if (!credentialResponse?.credential) {
+      console.error("Google login returned no credential", credentialResponse);
+      setError("Google login failed: no credential was returned.");
+      return;
+    }
+
     try {
       const result = await loginWithGoogle(credentialResponse.credential);
       onLoginSuccess(result);
     } catch (err) {
-      setError("Google login failed. Please try again.");
+      console.error("Google login request failed", err);
+      setError(err.message || "Google login failed. Please try again.");
     }
   };
 

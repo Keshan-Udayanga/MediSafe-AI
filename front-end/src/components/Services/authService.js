@@ -36,7 +36,21 @@ export async function loginWithGoogle(googleToken) {
   });
 
   if (!response.ok) {
-    throw new Error("Google login failed");
+    let detail = "Google login failed";
+
+    try {
+      const errorBody = await response.json();
+      detail = errorBody.detail || detail;
+    } catch (parseError) {
+      console.error("Could not read Google login error response", parseError);
+    }
+
+    console.error("Google login failed", {
+      status: response.status,
+      detail,
+    });
+
+    throw new Error(detail);
   }
 
   return await response.json();
