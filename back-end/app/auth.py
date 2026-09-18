@@ -13,7 +13,12 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 logger = logging.getLogger(__name__)
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "temporary-secret-change-this")
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+# Change the hardcoded fallback value to match your actual frontend client ID
+GOOGLE_CLIENT_ID = os.getenv(
+    "969316442650-abi1s5o13khi3iommpvdchc3s5j25lmg.apps.googleusercontent.com", 
+    "433792870261-71c2798lbarhr6bhjpqv4bcep8e0em7n.apps.googleusercontent.com"
+)
+
 
 def create_jwt_token(user_data: dict):
     payload = {
@@ -31,7 +36,10 @@ def verify_google_token(token: str):
 
     try:
         idinfo = id_token.verify_oauth2_token(
-            token, google_requests.Request(), GOOGLE_CLIENT_ID
+            token, google_requests.Request(), [
+                '433792870261-71c2798lbarhr6bhjpqv4bcep8e0em7n.apps.googleusercontent.com',
+                '969316442650-abi1s5o13khi3iommpvdchc3s5j25lmg.apps.googleusercontent.com'
+            ]
         )
         return {
             "email": idinfo["email"],
