@@ -80,33 +80,33 @@ def get_agent_output(result) -> str:
 
 
 def build_rag_prompt(
-    query: str,
-    context: str,
-    task_instruction: str,
-) -> str:
+        query: str,
+        context: str,
+        task_instruction: str,
+    ) -> str:
 
-    return f"""
-User Question:
-{query}
+        return f"""
+    User Question:
+    {query}
 
-Task:
-{task_instruction}
+    Task:
+    {task_instruction}
 
-Retrieved Documents:
-{context}
+    Retrieved Documents:
+    {context}
 
-STRICT INSTRUCTIONS:
+    STRICT INSTRUCTIONS:
+    - Answer ONLY using the retrieved documents.
+    - Do not use general knowledge or invent clinical facts.
+    - If the document does not contain specific parameters, state "Data not available in source docs".
 
-- Answer ONLY using the retrieved documents.
-- Do not use general knowledge.
-- Do not invent facts.
-- Do not add information that is not supported by the retrieved documents.
-- If the retrieved documents do not contain the answer,
-  explicitly state that the information is not available
-  in the provided documents.
+    OUTPUT FORMATTING RULES FOR R&D:
+    1. Format the response as a professional **Technical Drug Profile**.
+    2. Group the attributes into clear, logical research segments (e.g., Clinical Profile, Pharmacology, Regulatory & Commerce).
+    3. Use high-density, analytical markdown formatting (clean bullet points, key bolding).
+    4. Do not output raw JSON keys, unformatted text blocks, or conversational filler phrases.
+    """
 
-Generate the answer based only on the retrieved context.
-"""
 
 
 @app.post("/api/orchestrate")
