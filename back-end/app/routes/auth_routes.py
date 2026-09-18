@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -10,6 +12,7 @@ from app.models import User
 
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
@@ -52,6 +55,8 @@ def google_login(
     db=Depends(get_db)
 ):
 
+    logger.info("Google login request received")
+
     # ---------------------------------------
     # 1. Verify Google token
     # ---------------------------------------
@@ -61,6 +66,8 @@ def google_login(
     )
 
     if not google_user:
+
+        logger.error("Google login rejected: token verification returned no user")
 
         raise HTTPException(
             status_code=401,

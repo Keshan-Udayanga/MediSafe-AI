@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.auth import SECRET_KEY
 from app.database import get_db
 from app.models import DrugInformationDocument, SafetyDocument, User
+from app.ir_module.indexer import index_document, remove_document
 
 
 router = APIRouter(prefix="/api/admin/drug-information-documents", tags=["Drug Information Documents"])
@@ -62,6 +63,7 @@ async def upload_document(
     db.add(document)
     db.commit()
     db.refresh(document)
+    index_document(document.id, document.title, "drug_information", pdf_bytes)
     return {"id": document.id, "title": document.title}
 
 
@@ -77,6 +79,7 @@ def delete_safety_document(
 
     db.delete(document)
     db.commit()
+    remove_document(document_id, "safety")
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -95,6 +98,7 @@ def delete_document(
 
     db.delete(document)
     db.commit()
+    remove_document(document_id, "drug_information")
 
 
 @router.get("/safety")
@@ -124,6 +128,7 @@ async def upload_safety_document(
     db.add(document)
     db.commit()
     db.refresh(document)
+    index_document(document.id, document.title, "safety", pdf_bytes)
     return {"id": document.id, "title": document.title}
 
 
