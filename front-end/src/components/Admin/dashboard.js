@@ -102,54 +102,6 @@ function AdminDashboard({ user, onLogout }) {
   return (
     <div className="admin-dashboard">
 
-      {/* Sidebar */}
-      <aside className="sidebar">
-
-        <div className="brand">
-          <div className="brand-icon">M</div>
-
-          <div>
-            <h2>MediSafe</h2>
-            <span>AI Admin</span>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav">
-
-          <button className="nav-item active">
-            <span>⌂</span>
-            Dashboard
-          </button>
-
-          <button className="nav-item" onClick={() => navigate("/home")}>
-            <span>🤖</span>
-            Chatbot
-          </button>
-
-          <button className="nav-item" onClick={() => openDocuments("drug")}>
-            <span>📄</span>
-            Drug Information
-          </button>
-
-          <button className="nav-item" onClick={() => openDocuments("safety")}>
-            <span>🛡️</span>
-            Safety Documents
-          </button>
-
-        </nav>
-
-        <div className="sidebar-bottom">
-
-          <button className="logout-btn" onClick={onLogout}>
-            <span>↪</span>
-            Logout
-          </button>
-
-        </div>
-
-      </aside>
-
-
       {/* Main Content */}
       <main className="dashboard-main">
 
@@ -254,8 +206,8 @@ function AdminDashboard({ user, onLogout }) {
               information retrieval and safety responses.
             </p>
 
-            <button className="primary-btn" onClick={() => navigate("/home")}>
-              Open Chatbot
+            <button className="primary-btn" onClick={() => navigate("/admin/chat")}>
+              Open Chatbox
               <span>→</span>
             </button>
 
@@ -323,26 +275,6 @@ function AdminDashboard({ user, onLogout }) {
 
         </section>
 
-
-        {/* Bottom Info */}
-        <section className="info-panel">
-
-          <div className="info-icon">
-            💡
-          </div>
-
-          <div>
-            <h3>How MediSafe AI works</h3>
-
-            <p>
-              The Orchestrator receives the user's question
-              and routes it to the appropriate AI agent.
-              Agents use information from the available
-              knowledge documents.
-            </p>
-          </div>
-
-        </section>
 
       </main>
 

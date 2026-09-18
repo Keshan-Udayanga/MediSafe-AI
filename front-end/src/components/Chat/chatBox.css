@@ -15,55 +15,9 @@
 }
 
 .chat-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 28px;
+  min-height: 14px;
   border-bottom: 1px solid var(--border-color);
   background-color: var(--bg-secondary);
-}
-
-.header-title {
-  color: var(--text-primary);
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.header-user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.user-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background-color: var(--accent-blue);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.user-text {
-  text-align: right;
-}
-
-.user-name {
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.user-email {
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1.3;
 }
 
 /* ============ UNIFIED CHAT CARD (Messages + Input) ============ */
