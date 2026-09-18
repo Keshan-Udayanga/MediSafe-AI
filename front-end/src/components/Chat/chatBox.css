@@ -133,6 +133,27 @@
   border-bottom-left-radius: 4px;
 }
 
+/* Styling inside the agent bubble for clean markdown profiles */
+.message-agent .message-text h2 {
+  font-size: 1.15rem;
+  margin-top: 15px;
+  margin-bottom: 5px;
+  color: #1a73e8; /* Research blue theme */
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 2px;
+}
+
+.message-agent .message-text ul {
+  margin: 5px 0 10px 20px;
+  padding: 0;
+}
+
+.message-agent .message-text li {
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+
 .agent-tag {
   display: inline-block;
   background-color: rgba(58, 110, 165, 0.2);
