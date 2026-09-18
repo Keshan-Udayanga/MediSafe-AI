@@ -1,39 +1,54 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import create_agent
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from app.agents.config import drug_info_config, drug_interaction_config, AgentConfig
-from app.tools import supabase_tools # Imported from your script
 
-def create_gemini_agent(config: AgentConfig, tools: list) :
-    """Builds a structured LangChain tool agent bound to a specific Gemini model."""
-    
-    # 1. Initialize the specific Gemini model
+from app.agents.config import (
+    drug_info_config,
+    drug_interaction_config,
+    AgentConfig,
+)
+
+
+def create_gemini_agent(config: AgentConfig):
+
     llm = ChatGoogleGenerativeAI(
         model=config.model_name,
-        max_retries=2
+        max_retries=2,
     )
-    
-    # 2. Structure instructions safely for a clinical setting
+
     system_prompt = (
         f"You are {config.name}, working as a {config.role}.\n"
         f"Your Goal: {config.goal}\n"
-        f"Your Backstory: {config.backstory}\n"
-        f"CRITICAL: You are operating in a medical drug research development context. "
-        f"Only rely on verified data outputs from your tools. Do not invent or assume safety warnings."
+        f"Your Backstory: {config.backstory}\n\n"
+
+        "STRICT RAG RULES:\n"
+        "1. You may ONLY use information contained in the supplied retrieved context.\n"
+        "2. Do NOT use your own general knowledge.\n"
+        "3. Do NOT guess or infer unsupported medical facts.\n"
+        "4. If the retrieved context does not contain enough information, "
+        "say that the information is not available in the provided documents.\n"
+        "5. Do not answer questions unrelated to the supplied medical documents.\n"
+        "6. You must answer ONLY using the retrieved medical document context.\n"
+        "7. If the answer is not supported by the retrieved context, say that the information is not available in the provided medical documents."
     )
 
-    # 3. Create the executable tool calling pipeline
     agent = create_agent(
-        model=llm,          # Positional arg 1
-        tools=tools,        # Positional arg 2
-        system_prompt=system_prompt  # Keyword-only arg
+        model=llm,
+        tools=[],
+        system_prompt=system_prompt,
     )
+
     return agent
 
-# Instantiations with their respective tools scoped
+
 def get_drug_info_agent():
-    return create_gemini_agent(drug_info_config, [supabase_tools.get_drug_information])
+
+    return create_gemini_agent(
+        drug_info_config
+    )
+
 
 def get_drug_safety_agent():
-    # Interaction agent gets both tools to query profiles and check crossover safety flags
-    return create_gemini_agent(drug_interaction_config, [supabase_tools.get_drug_information, supabase_tools.check_drug_safety])
+
+    return create_gemini_agent(
+        drug_interaction_config
+    )

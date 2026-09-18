@@ -1,38 +1,72 @@
+from app.orchestrator.schema import (
+    ExecutionPlan,
+    TaskStep,
+)
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
-from app.orchestrator.schema import ExecutionPlan
 
-def generate_execution_plan(researcher_query: str) -> ExecutionPlan:
-    """Uses Gemini to decide the workflow routing based on the user's research needs."""
-    
-    # Use pro for complex planning and reasoning
-    llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash-lite")
-    structured_llm = llm.with_structured_output(ExecutionPlan)
-    
-    prompt = ChatPromptTemplate.from_messages([
-        (
-            "system",
-            "You are the Lead Scientific Orchestrator for a pharmaceutical multi-agent system.\n"
-            "Your job is to analyze the researcher's query and enforce the following strict clinical routing rules:\n\n"
-            
-            "1. RELEVANCE FILTER:\n"
-            "- Evaluate if the query is strictly about medicine, pharmacology, or health. "
-            "If it is about unrelated topics (e.g., coding, sports, weather, jokes), set 'is_drug_related' to false, leave 'extracted_drugs' and 'steps' completely empty.\n\n"
-            
-            "2. ENTITY EXTRACTION:\n"
-            "- Extract all specific drug names, active ingredients, or chemical compounds into 'extracted_drugs'.\n"
-            "- If the query is related to medicine but NO specific drug or compound is named anywhere in the prompt, leave 'extracted_drugs' and 'steps' empty.\n\n"
-            
-            "3. ROUTING AND AGENT SELECTION:\n"
-            "- Available Agents: 'info_agent' (database lookups/properties) and 'safety_agent' (interactions/adverse effects).\n"
-            "- CRITICAL RULE: If the user is ONLY looking for general drug properties or information, DO NOT use or schedule the 'safety_agent'. Schedule the 'info_agent' only.\n"
-            "- If the user specifically asks about safety, warnings, or cross-interactions between multiple drugs, schedule the 'safety_agent' (either alone or after the info_agent).\n"
-            "- Make sure the 'task_instruction' explicitly mentions which extracted drugs to process."
-        ),
-        ("human", "Researcher Query: {query}")
-    ])
-    
-    # Invoke the structured chain
-    chain = prompt | structured_llm
-    return chain.invoke({"query": researcher_query})
+def fallback_plan(
+    query: str,
+    target_drugs: list[str]
+) -> ExecutionPlan:
+
+    query_lower = query.lower()
+
+    safety_terms = [
+        "interaction",
+        "interactions",
+        "side effect",
+        "side effects",
+        "adverse",
+        "contraindication",
+        "contraindications",
+        "warning",
+        "safety",
+        "danger",
+    ]
+
+    safety_requested = any(
+        term in query_lower
+        for term in safety_terms
+    )
+
+    if safety_requested:
+
+        steps = [
+            TaskStep(
+                agent_target="safety_agent",
+                task_instruction=(
+                    "Use only the retrieved safety-related "
+                    "document context."
+                ),
+            )
+        ]
+
+    else:
+
+        steps = [
+            TaskStep(
+                agent_target="info_agent",
+                task_instruction=(
+                    "Use only the retrieved drug information "
+                    "document context."
+                ),
+            )
+        ]
+
+    return ExecutionPlan(
+        extracted_drugs=[
+            drug.strip()
+            for drug in target_drugs
+            if drug.strip()
+        ],
+        reasoning="Fallback routing plan.",
+        steps=steps,
+        requires_rag=True,
+    )
+
+
+def generate_execution_plan(
+    researcher_query: str,
+    target_drugs: list[str] | None = None,
+) -> ExecutionPlan:
+    return fallback_plan(researcher_query, target_drugs or [])
