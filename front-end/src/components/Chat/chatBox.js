@@ -63,16 +63,6 @@ function ChatBox({ user, onLogout }) {
     return (
         <div className="chat-container">
             <div className="chat-main">
-                <div className="chat-header">
-                    <h3 className="header-title">💊 MediSafe AI Assistant</h3>
-                    <div className="header-user">
-                        <div className="user-avatar">{user?.username?.charAt(0).toUpperCase()}</div>
-                        <div className="user-text">
-                            <p className="user-name">{user?.username}</p>
-                            <p className="user-email">{user?.email}</p>
-                        </div>
-                    </div>
-                </div>
 
                 {/* ← අලුත් wrapper div එකක් - Messages + Input දෙකම මේකට ඇතුලේ */}
                 <div className="chat-card">
