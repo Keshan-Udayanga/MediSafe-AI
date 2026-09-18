@@ -1,9 +1,10 @@
 import logging
+import json
 import os
-import pickle
 from datetime import datetime, timezone
 from pathlib import Path
 
+import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from app.database import SessionLocal
@@ -14,7 +15,7 @@ from app.ir_module.preprocessing import chunk_text, normalize_text, preprocess_t
 
 logger = logging.getLogger(__name__)
 INDEX_DIR = Path(__file__).resolve().parent / "index"
-INDEX_FILE = INDEX_DIR / "rag_index.pkl"
+INDEX_FILE = INDEX_DIR / "documents.json"
 
 
 def _document_chunks(document):
@@ -42,10 +43,17 @@ def _write_records(records):
         return
     vectorizer = TfidfVectorizer()
     matrix = vectorizer.fit_transform([record["processed_text"] for record in records])
-    payload = {"version": 1, "built_at": datetime.now(timezone.utc).isoformat(), "records": records, "vectorizer": vectorizer, "matrix": matrix}
+    payload = {
+        "version": 1,
+        "built_at": datetime.now(timezone.utc).isoformat(),
+        "records": records,
+        "vocabulary": vectorizer.vocabulary_,
+        "idf": vectorizer.idf_.tolist(),
+        "matrix": matrix.toarray().tolist(),
+    }
     temporary_file = INDEX_FILE.with_suffix(".tmp")
-    with temporary_file.open("wb") as file:
-        pickle.dump(payload, file, protocol=pickle.HIGHEST_PROTOCOL)
+    with temporary_file.open("w", encoding="utf-8") as file:
+        json.dump(payload, file, ensure_ascii=False)
     os.replace(temporary_file, INDEX_FILE)
     logger.info("[INDEXER] Saved %d chunks to %s", len(records), INDEX_FILE)
 
@@ -54,8 +62,19 @@ def load_index():
     if not INDEX_FILE.exists():
         logger.warning("[INDEXER] Index does not exist: %s", INDEX_FILE)
         return None
-    with INDEX_FILE.open("rb") as file:
-        return pickle.load(file)
+    try:
+        with INDEX_FILE.open("r", encoding="utf-8") as file:
+            payload = json.load(file)
+        vectorizer = TfidfVectorizer(vocabulary=payload["vocabulary"])
+        vectorizer.fit([" ".join(payload["vocabulary"].keys())])
+        vectorizer._tfidf.idf_ = np.asarray(payload["idf"], dtype=float)
+        vectorizer.fixed_vocabulary_ = True
+        payload["vectorizer"] = vectorizer
+        payload["matrix"] = np.asarray(payload["matrix"], dtype=float)
+        return payload
+    except (OSError, ValueError, KeyError, json.JSONDecodeError):
+        logger.exception("[INDEXER] Unable to load local index: %s", INDEX_FILE)
+        return None
 
 
 def rebuild_index(db=None):
