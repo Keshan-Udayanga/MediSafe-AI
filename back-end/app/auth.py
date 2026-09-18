@@ -6,7 +6,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "temporary-secret-change-this")
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")  # front-end එකේ use කරපු ID එකම
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID") # front-end එකේ use කරපු ID එකම
 
 def create_jwt_token(user_data: dict):
     payload = {
