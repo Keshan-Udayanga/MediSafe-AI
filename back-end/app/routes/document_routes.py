@@ -61,9 +61,14 @@ async def upload_document(
 
     document = DrugInformationDocument(title=filename, pdf_file=pdf_bytes)
     db.add(document)
-    db.commit()
+    try:
+        db.flush()
+        index_document(document.id, document.title, "drug_information", pdf_bytes, db)
+        db.commit()
+    except Exception as error:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Document indexing failed") from error
     db.refresh(document)
-    index_document(document.id, document.title, "drug_information", pdf_bytes)
     return {"id": document.id, "title": document.title}
 
 
@@ -77,9 +82,13 @@ def delete_safety_document(
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    db.delete(document)
-    db.commit()
-    remove_document(document_id, "safety")
+    try:
+        remove_document(document_id, "safety", db)
+        db.delete(document)
+        db.commit()
+    except Exception as error:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Document deletion failed") from error
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -96,9 +105,13 @@ def delete_document(
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    db.delete(document)
-    db.commit()
-    remove_document(document_id, "drug_information")
+    try:
+        remove_document(document_id, "drug_information", db)
+        db.delete(document)
+        db.commit()
+    except Exception as error:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Document deletion failed") from error
 
 
 @router.get("/safety")
@@ -126,9 +139,14 @@ async def upload_safety_document(
 
     document = SafetyDocument(title=filename, pdf_file=pdf_bytes)
     db.add(document)
-    db.commit()
+    try:
+        db.flush()
+        index_document(document.id, document.title, "safety", pdf_bytes, db)
+        db.commit()
+    except Exception as error:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Document indexing failed") from error
     db.refresh(document)
-    index_document(document.id, document.title, "safety", pdf_bytes)
     return {"id": document.id, "title": document.title}
 
 

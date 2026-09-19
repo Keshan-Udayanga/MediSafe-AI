@@ -3,9 +3,23 @@
 
 const API_BASE_URL = "http://127.0.0.1:8000";
 
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 // Google login
 export async function loginWithGoogle(googleToken) {
-  const response = await fetch(`${API_BASE_URL}/auth/google-login`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/auth/google-login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -13,7 +27,7 @@ export async function loginWithGoogle(googleToken) {
     body: JSON.stringify({
       token: googleToken,
     }),
-  });
+  }, 20000);
 
   if (!response.ok) {
     let detail = "Google login failed";
@@ -44,13 +58,13 @@ export async function getCurrentUser() {
     return null;
   }
 
-  const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/auth/me`, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-  });
+  }, 5000);
 
   if (!response.ok) {
     // Token expired / invalid
