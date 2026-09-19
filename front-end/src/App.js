@@ -15,6 +15,7 @@ import {
 import LoginPage from "./components/Login/loginPage";
 import ChatBox from "./components/Chat/chatBox";
 import AdminDashboard from "./components/Admin/dashboard";
+import DocumentTablePage from "./components/Admin/documentTablePage";
 
 import {
   getCurrentUser
@@ -44,10 +45,11 @@ function AuthenticatedLayout({ user, currentView, onLogout, children }) {
 
   const navItems = isAdmin
     ? [
-      { id: "admin-chat", label: "Chatbox", icon: "💬", action: () => navigate("/admin/chat") },
-      { id: "admin-dashboard", label: "Dashboard", icon: "📊", action: () => navigate("/admin/dashboard") },
-      { id: "admin-documents", label: "Documents", icon: "📄", action: () => navigate("/admin/dashboard") }
-    ]
+        { id: "admin-chat", label: "Chatbox", icon: "💬", action: () => navigate("/admin/chat") },
+        { id: "admin-dashboard", label: "Dashboard", icon: "📊", action: () => navigate("/admin/dashboard") },
+        { id: "admin-drug-docs", label: "Drug Information Document", icon: "📄", action: () => navigate("/admin/drug-documents") },
+        { id: "admin-safety-docs", label: "Safety Document", icon: "🛡️", action: () => navigate("/admin/safety-documents") }
+      ]
     : [
       { id: "chat", label: "Chat", icon: "💬", action: () => navigate("/home") },
       { id: "about", label: "About", icon: "ℹ️", action: () => navigate("/home") }
@@ -229,6 +231,32 @@ function AppContent() {
             </AuthenticatedLayout>
           ) : (
             <Navigate to="/home" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/admin/drug-documents"
+        element={
+          user && user.role === "admin" ? (
+            <AuthenticatedLayout user={user} currentView="admin-drug-docs" onLogout={handleLogout}>
+              <DocumentTablePage type="drug" user={user} />
+            </AuthenticatedLayout>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/admin/safety-documents"
+        element={
+          user && user.role === "admin" ? (
+            <AuthenticatedLayout user={user} currentView="admin-safety-docs" onLogout={handleLogout}>
+              <DocumentTablePage type="safety" user={user} />
+            </AuthenticatedLayout>
+          ) : (
+            <Navigate to="/" replace />
           )
         }
       />

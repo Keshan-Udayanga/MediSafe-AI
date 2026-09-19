@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -70,6 +71,54 @@ async def upload_document(
         raise HTTPException(status_code=500, detail="Document indexing failed") from error
     db.refresh(document)
     return {"id": document.id, "title": document.title}
+
+
+@router.get("/{document_id}/pdf")
+def get_drug_document_pdf(
+    document_id: int,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    document = (
+        db.query(DrugInformationDocument)
+        .filter(DrugInformationDocument.id == document_id)
+        .first()
+    )
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    return Response(
+        content=document.pdf_file,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{document.title}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@router.get("/safety/{document_id}/pdf")
+def get_safety_document_pdf(
+    document_id: int,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    document = (
+        db.query(SafetyDocument)
+        .filter(SafetyDocument.id == document_id)
+        .first()
+    )
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    return Response(
+        content=document.pdf_file,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{document.title}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.delete("/safety/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -148,5 +197,3 @@ async def upload_safety_document(
         raise HTTPException(status_code=500, detail="Document indexing failed") from error
     db.refresh(document)
     return {"id": document.id, "title": document.title}
-
-
