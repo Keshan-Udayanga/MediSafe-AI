@@ -1,4 +1,5 @@
 import os 
+import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -9,13 +10,12 @@ load_dotenv(dotenv_path=env_path)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-supabase: Client = create_client(
-    SUPABASE_URL,
-    SUPABASE_KEY
-)
+
+def get_supabase_client() -> Client:
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 @tool
-def get_drug_information(drug_name: str) -> str:
+async def get_drug_information(drug_name: str) -> str:
     """Retrieve verified information about a medication."""
     
     response = (
@@ -32,7 +32,7 @@ def get_drug_information(drug_name: str) -> str:
     return str(response.data)
 
 @tool
-def check_drug_safety(drug_name: str) -> str:
+async def check_drug_safety(drug_name: str) -> str:
     """Retrieve verified safety information about a medication."""
     
     # FIX: Query both 'drug_a' and 'drug_b' columns using matching syntax

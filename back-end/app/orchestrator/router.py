@@ -10,7 +10,7 @@ def fallback_plan(
 ) -> ExecutionPlan:
 
     query_lower = query.lower()
-
+    
     safety_terms = [
         "interaction",
         "interactions",

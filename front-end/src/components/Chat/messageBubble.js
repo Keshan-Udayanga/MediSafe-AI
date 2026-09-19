@@ -1,4 +1,5 @@
 import React from "react";
+import ReactMarkdown from "react-markdown"; 
 import "./chatBox.css";
 
 function MessageBubble({ sender, text, timestamp, agentUsed }) {
@@ -11,7 +12,9 @@ function MessageBubble({ sender, text, timestamp, agentUsed }) {
         {!isUser && agentUsed && (
           <span className="agent-tag">{agentUsed}</span>
         )}
-        <p className="message-text">{text}</p>
+        <div className="message-text">
+          <ReactMarkdown>{text}</ReactMarkdown>
+        </div>
         <span className="message-time">{timestamp}</span>
       </div>
     </div>
