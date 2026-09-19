@@ -6,6 +6,7 @@ import {
   getSafetyDocuments,
   uploadSafetyDocument,
   deleteSafetyDocument,
+  fetchDocumentPdfBlob,
 } from "../Services/documentService";
 import "./documentTablePage.css";
 
@@ -27,6 +28,15 @@ function DocumentTablePage({ type = "drug", user }) {
   const [success, setSuccess] = useState("");
   const fileInputRef = useRef(null);
 
+  // PDF Viewer State
+  const [pdfViewer, setPdfViewer] = useState({
+    open: false,
+    title: "",
+    blobUrl: null,
+    loading: false,
+    error: "",
+  });
+
   const loadDocuments = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -46,6 +56,52 @@ function DocumentTablePage({ type = "drug", user }) {
     setError("");
     setSuccess("");
   }, [loadDocuments]);
+
+  // Close viewer and release blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (pdfViewer.blobUrl) {
+        URL.revokeObjectURL(pdfViewer.blobUrl);
+      }
+    };
+  }, [pdfViewer.blobUrl]);
+
+  // Close PDF viewer on Escape key
+  useEffect(() => {
+    if (!pdfViewer.open) return;
+    const handleKey = (e) => {
+      if (e.key === "Escape") {
+        if (pdfViewer.blobUrl) URL.revokeObjectURL(pdfViewer.blobUrl);
+        setPdfViewer({ open: false, title: "", blobUrl: null, loading: false, error: "" });
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [pdfViewer.open, pdfViewer.blobUrl]);
+
+  const openPdfViewer = async (doc) => {
+    // Release previous blob
+    if (pdfViewer.blobUrl) URL.revokeObjectURL(pdfViewer.blobUrl);
+
+    setPdfViewer({ open: true, title: doc.title, blobUrl: null, loading: true, error: "" });
+
+    try {
+      const blob = await fetchDocumentPdfBlob(doc.id, isSafety);
+      const blobUrl = URL.createObjectURL(blob);
+      setPdfViewer((prev) => ({ ...prev, blobUrl, loading: false }));
+    } catch (err) {
+      setPdfViewer((prev) => ({
+        ...prev,
+        loading: false,
+        error: err.message || "Failed to load PDF.",
+      }));
+    }
+  };
+
+  const closePdfViewer = () => {
+    if (pdfViewer.blobUrl) URL.revokeObjectURL(pdfViewer.blobUrl);
+    setPdfViewer({ open: false, title: "", blobUrl: null, loading: false, error: "" });
+  };
 
   const handleFileSelected = async (event) => {
     const file = event.target.files?.[0];
@@ -73,7 +129,11 @@ function DocumentTablePage({ type = "drug", user }) {
   };
 
   const handleDelete = async (docId, docTitle) => {
-    if (!window.confirm(`Are you sure you want to delete "${docTitle}"? This will remove it from the AI knowledge base.`)) {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete "${docTitle}"? This will remove it from the AI knowledge base.`
+      )
+    ) {
       return;
     }
 
@@ -174,7 +234,9 @@ function DocumentTablePage({ type = "drug", user }) {
 
         <div className="doc-toolbar-actions">
           <span className="doc-count-badge">
-            <strong>{filteredDocs.length}</strong> of <strong>{documents.length}</strong> {documents.length === 1 ? "document" : "documents"}
+            <strong>{filteredDocs.length}</strong> of{" "}
+            <strong>{documents.length}</strong>{" "}
+            {documents.length === 1 ? "document" : "documents"}
           </span>
 
           <button
@@ -237,7 +299,12 @@ function DocumentTablePage({ type = "drug", user }) {
               </thead>
               <tbody>
                 {filteredDocs.map((doc, index) => (
-                  <tr key={doc.id} className="doc-row">
+                  <tr
+                    key={doc.id}
+                    className="doc-row doc-row-clickable"
+                    onClick={() => openPdfViewer(doc)}
+                    title={`Click to view "${doc.title}"`}
+                  >
                     <td className="col-id">{index + 1}</td>
                     <td className="col-title">
                       <div className="doc-file-info">
@@ -245,6 +312,7 @@ function DocumentTablePage({ type = "drug", user }) {
                         <span className="doc-name" title={doc.title}>
                           {doc.title}
                         </span>
+                        <span className="doc-view-hint">👁 View</span>
                       </div>
                     </td>
                     <td className="col-type">
@@ -252,10 +320,13 @@ function DocumentTablePage({ type = "drug", user }) {
                     </td>
                     <td className="col-status">
                       <span className="status-badge active">
-                        <span className="dot"></span> Indexed & Active
+                        <span className="dot"></span> Indexed &amp; Active
                       </span>
                     </td>
-                    <td className="col-actions">
+                    <td
+                      className="col-actions"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button
                         type="button"
                         className="doc-delete-btn"
@@ -273,6 +344,88 @@ function DocumentTablePage({ type = "drug", user }) {
           </div>
         )}
       </main>
+
+      {/* ======== PDF VIEWER MODAL ======== */}
+      {pdfViewer.open && (
+        <div
+          className="pdf-modal-backdrop"
+          role="presentation"
+          onClick={closePdfViewer}
+        >
+          <div
+            className="pdf-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Viewing: ${pdfViewer.title}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="pdf-modal-header">
+              <div className="pdf-modal-title-row">
+                <span className="pdf-modal-icon">📄</span>
+                <div>
+                  <p className="pdf-modal-eyebrow">
+                    {isSafety ? "Safety Document" : "Drug Information Document"}
+                  </p>
+                  <h2 className="pdf-modal-title" title={pdfViewer.title}>
+                    {pdfViewer.title}
+                  </h2>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="pdf-modal-close"
+                onClick={closePdfViewer}
+                aria-label="Close PDF viewer"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="pdf-modal-body">
+              {pdfViewer.loading && (
+                <div className="pdf-loading">
+                  <div className="loading-spinner"></div>
+                  <p>Loading PDF...</p>
+                </div>
+              )}
+
+              {pdfViewer.error && !pdfViewer.loading && (
+                <div className="pdf-error">
+                  <span>⚠️</span>
+                  <p>{pdfViewer.error}</p>
+                </div>
+              )}
+
+              {pdfViewer.blobUrl && !pdfViewer.loading && (
+                <iframe
+                  className="pdf-iframe"
+                  src={pdfViewer.blobUrl}
+                  title={pdfViewer.title}
+                  aria-label={`PDF: ${pdfViewer.title}`}
+                />
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pdf-modal-footer">
+              <span className="pdf-modal-hint">
+                Press <kbd>Esc</kbd> or click outside to close
+              </span>
+              {pdfViewer.blobUrl && (
+                <a
+                  href={pdfViewer.blobUrl}
+                  download={pdfViewer.title}
+                  className="pdf-download-btn"
+                >
+                  ⬇️ Download PDF
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
