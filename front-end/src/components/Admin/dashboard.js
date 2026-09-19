@@ -1,5 +1,5 @@
-import React, { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useRef, useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   deleteDrugInformationDocument,
   deleteSafetyDocument,
@@ -12,6 +12,7 @@ import "./dashboard.css";
 
 function AdminDashboard({ user, onLogout }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [documents, setDocuments] = useState([]);
   const [documentsOpen, setDocumentsOpen] = useState(false);
   const [documentType, setDocumentType] = useState("drug");
@@ -20,6 +21,8 @@ function AdminDashboard({ user, onLogout }) {
   const [documentsError, setDocumentsError] = useState("");
   const [documentsSuccess, setDocumentsSuccess] = useState("");
   const fileInputRef = useRef(null);
+
+  const docParam = searchParams.get("doc");
 
   const loadDocuments = async () => {
     setDocumentsLoading(true);
@@ -51,6 +54,44 @@ function AdminDashboard({ user, onLogout }) {
       .catch((error) => setDocumentsError(error.message))
       .finally(() => setDocumentsLoading(false));
   };
+
+  const handleOpenDocuments = (type = "drug") => {
+    if (searchParams.get("doc") !== type) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("doc", type);
+      setSearchParams(nextParams);
+    } else {
+      openDocuments(type);
+    }
+  };
+
+  const handleCloseDocuments = () => {
+    setDocumentsOpen(false);
+    if (searchParams.get("doc")) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("doc");
+      setSearchParams(nextParams, { replace: true });
+    }
+  };
+
+  useEffect(() => {
+    if (docParam === "drug" || docParam === "safety") {
+      openDocuments(docParam);
+    } else if (!docParam) {
+      setDocumentsOpen(false);
+    }
+  }, [docParam]);
+
+  useEffect(() => {
+    const handleCustomOpen = (event) => {
+      const type = event.detail;
+      if (type === "drug" || type === "safety") {
+        openDocuments(type);
+      }
+    };
+    window.addEventListener("open-admin-doc", handleCustomOpen);
+    return () => window.removeEventListener("open-admin-doc", handleCustomOpen);
+  }, []);
 
   const handleFileSelected = async (event) => {
     const file = event.target.files?.[0];
@@ -149,7 +190,7 @@ function AdminDashboard({ user, onLogout }) {
           </div>
 
 
-          <div className="stat-card">
+          <div className="stat-card" style={{ cursor: "pointer" }} onClick={() => handleOpenDocuments("drug")} role="button" tabIndex={0}>
             <div className="stat-icon blue">📄</div>
 
             <div>
@@ -159,7 +200,7 @@ function AdminDashboard({ user, onLogout }) {
           </div>
 
 
-          <div className="stat-card">
+          <div className="stat-card" style={{ cursor: "pointer" }} onClick={() => handleOpenDocuments("safety")} role="button" tabIndex={0}>
             <div className="stat-icon green">🛡️</div>
 
             <div>
@@ -236,7 +277,7 @@ function AdminDashboard({ user, onLogout }) {
               used by the Information Agent.
             </p>
 
-            <button className="secondary-btn" onClick={() => openDocuments("drug")}>
+            <button className="secondary-btn" onClick={() => handleOpenDocuments("drug")}>
               Manage Documents
               <span>→</span>
             </button>
@@ -266,7 +307,7 @@ function AdminDashboard({ user, onLogout }) {
               by the Safety Agent.
             </p>
 
-            <button className="secondary-btn" onClick={() => openDocuments("safety")}>
+            <button className="secondary-btn" onClick={() => handleOpenDocuments("safety")}>
               Manage Documents
               <span>→</span>
             </button>
@@ -279,7 +320,7 @@ function AdminDashboard({ user, onLogout }) {
       </main>
 
       {documentsOpen && (
-        <div className="document-modal-backdrop" role="presentation" onClick={() => setDocumentsOpen(false)}>
+        <div className="document-modal-backdrop" role="presentation" onClick={handleCloseDocuments}>
           <section className="document-modal" role="dialog" aria-modal="true" aria-labelledby="document-modal-title" onClick={(event) => event.stopPropagation()}>
             <div className="document-modal-header">
               <div>
@@ -289,7 +330,7 @@ function AdminDashboard({ user, onLogout }) {
                 <h2 id="document-modal-title">Manage Documents</h2>
                 <p>PDF files stored in the knowledge base.</p>
               </div>
-              <button className="modal-close-btn" onClick={() => setDocumentsOpen(false)} aria-label="Close document manager">×</button>
+              <button className="modal-close-btn" onClick={handleCloseDocuments} aria-label="Close document manager">×</button>
             </div>
 
             <div className="document-modal-actions">

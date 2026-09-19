@@ -5,7 +5,8 @@ import {
   Routes,
   Route,
   Navigate,
-  useNavigate
+  useNavigate,
+  useLocation
 } from "react-router-dom";
 
 import {
@@ -28,6 +29,7 @@ const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 function AuthenticatedLayout({ user, currentView, onLogout, children }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const isAdmin = user?.role === "admin";
 
@@ -42,11 +44,35 @@ function AuthenticatedLayout({ user, currentView, onLogout, children }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const searchParams = new URLSearchParams(location.search);
+  const docParam = searchParams.get("doc");
+
+  let activeView = currentView;
+  if (isAdmin && location.pathname === "/admin/dashboard") {
+    if (docParam === "drug") {
+      activeView = "admin-drug-docs";
+    } else if (docParam === "safety") {
+      activeView = "admin-safety-docs";
+    } else {
+      activeView = "admin-dashboard";
+    }
+  }
+
+  const openAdminDoc = (type) => {
+    if (location.pathname === "/admin/dashboard") {
+      navigate(`/admin/dashboard?doc=${type}`);
+      window.dispatchEvent(new CustomEvent("open-admin-doc", { detail: type }));
+    } else {
+      navigate(`/admin/dashboard?doc=${type}`);
+    }
+  };
+
   const navItems = isAdmin
     ? [
         { id: "admin-chat", label: "Chatbox", icon: "💬", action: () => navigate("/admin/chat") },
         { id: "admin-dashboard", label: "Dashboard", icon: "📊", action: () => navigate("/admin/dashboard") },
-        { id: "admin-documents", label: "Documents", icon: "📄", action: () => navigate("/admin/dashboard") }
+        { id: "admin-drug-docs", label: "Drug Information Document", icon: "📄", action: () => openAdminDoc("drug") },
+        { id: "admin-safety-docs", label: "Safety Document", icon: "🛡️", action: () => openAdminDoc("safety") }
       ]
     : [
         { id: "chat", label: "Chat", icon: "💬", action: () => navigate("/home") },
@@ -68,7 +94,7 @@ function AuthenticatedLayout({ user, currentView, onLogout, children }) {
             <button
               key={item.id}
               type="button"
-              className={`nav-button ${currentView === item.id ? "active" : ""}`}
+              className={`nav-button ${activeView === item.id ? "active" : ""}`}
               onClick={item.action}
             >
               <span>{item.icon}</span>
