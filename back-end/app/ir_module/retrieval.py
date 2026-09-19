@@ -1,13 +1,13 @@
 import logging
 import os
 import sys
-from typing import List, Dict
+from typing import Dict, List
 
 import numpy as np
-from app.database import SessionLocal
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from app.database import SessionLocal
 from app.models import DocumentChunk, TfidfIndex
 from app.ir_module.preprocessing import preprocess_text
 
@@ -17,11 +17,15 @@ RAG_THRESHOLD = float(os.getenv("RAG_THRESHOLD", "0.10"))
 TOP_K = 5
 
 
-def retrieve_relevant_chunks(
-    query: str,
-    top_k: int = TOP_K,
-    min_similarity: float = RAG_THRESHOLD,
-) -> List[Dict]:
+def _document_title(db, document_id, document_type):
+    from app.models import DrugInformationDocument, SafetyDocument
+
+    model = SafetyDocument if document_type == "safety" else DrugInformationDocument
+    document = db.query(model.title).filter(model.id == document_id).first()
+    return document[0] if document else "Unknown document"
+
+
+def retrieve_relevant_chunks(query: str, top_k: int = TOP_K, min_similarity: float = RAG_THRESHOLD) -> List[Dict]:
     with SessionLocal() as db:
         index = db.query(TfidfIndex).filter(TfidfIndex.id == 1).first()
         if not index:
@@ -36,15 +40,12 @@ def retrieve_relevant_chunks(
         vectorizer.fit([" ".join(index.vocabulary.keys())])
         vectorizer._tfidf.idf_ = np.asarray(index.idf, dtype=float)
         vectorizer.fixed_vocabulary_ = True
-        query_vector = vectorizer.transform([query_processed])
         matrix = np.asarray(index.matrix, dtype=float)
-        similarities = cosine_similarity(query_vector, matrix)[0]
+        similarities = cosine_similarity(vectorizer.transform([query_processed]), matrix)[0]
         chunks = db.query(DocumentChunk).order_by(DocumentChunk.id).all()
-        ranked = sorted(enumerate(similarities), key=lambda item: item[1], reverse=True)
-        logger.info("[RETRIEVAL] Query: %s; indexed chunks: %d", query, len(chunks))
 
         results = []
-        for item_index, score in ranked:
+        for item_index, score in sorted(enumerate(similarities), key=lambda item: item[1], reverse=True):
             if score < min_similarity:
                 continue
             chunk = chunks[item_index]
@@ -59,16 +60,7 @@ def retrieve_relevant_chunks(
             })
             if len(results) >= top_k:
                 break
-
         return results
-
-
-def _document_title(db, document_id: int, document_type: str) -> str:
-    from app.models import DrugInformationDocument, SafetyDocument
-
-    model = SafetyDocument if document_type == "safety" else DrugInformationDocument
-    document = db.query(model.title).filter(model.id == document_id).first()
-    return document[0] if document else "Unknown document"
 
 
 if __name__ == "__main__":
@@ -77,6 +69,5 @@ if __name__ == "__main__":
     results = retrieve_relevant_chunks(query)
     print(f"Query: {query}")
     print(f"Has context: {bool(results)}")
-    print("Top documents:")
     for result in results:
-        print(f"- {result['title']} | document={result['document_id']} | similarity={result['score']:.4f}")
+        print(f"- {result['title']} | similarity={result['score']:.4f}")

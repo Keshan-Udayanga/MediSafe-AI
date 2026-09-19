@@ -39,8 +39,7 @@ def verify_google_token(token: str):
             token, google_requests.Request(), [
                 '433792870261-71c2798lbarhr6bhjpqv4bcep8e0em7n.apps.googleusercontent.com',
                 '969316442650-abi1s5o13khi3iommpvdchc3s5j25lmg.apps.googleusercontent.com'
-            ],
-            clock_skew_in_seconds=5,
+            ]
         )
         return {
             "email": idinfo["email"],

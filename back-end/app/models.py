@@ -81,16 +81,8 @@ class SafetyDocument(Base):
 
 
 class DocumentChunk(Base):
-
     __tablename__ = "document_chunks"
-    __table_args__ = (
-        UniqueConstraint(
-            "document_id",
-            "document_type",
-            "chunk_id",
-            name="uq_document_chunk_source",
-        ),
-    )
+    __table_args__ = (UniqueConstraint("document_id", "document_type", "chunk_id", name="uq_document_chunk_source"),)
 
     id = Column(Integer, primary_key=True)
     document_id = Column(Integer, nullable=False, index=True)
@@ -103,7 +95,6 @@ class DocumentChunk(Base):
 
 
 class TfidfIndex(Base):
-
     __tablename__ = "tfidf_index"
 
     id = Column(Integer, primary_key=True)

@@ -15,33 +15,28 @@ logger = logging.getLogger(__name__)
 def _document_chunks(document):
     records = []
     pages = extract_pdf_pages(document["pdf_file"])
-    logger.info("[PDF] Document: %s; PDF bytes: %d; pages: %d", document["title"], len(document["pdf_file"]), len(pages))
-    next_chunk_id = 0
     for page in pages:
         text = normalize_text(page["text"])
         if not text:
             continue
         chunks = chunk_text(text, chunk_size=500, overlap=100)
-        logger.info("[INDEXER] Document: %s; original characters: %d; chunks: %d", document["title"], len(text), len(chunks))
-        for chunk in chunks:
+        for chunk_id, chunk in enumerate(chunks):
             processed = preprocess_text(chunk)
             if processed:
                 records.append({
                     "document_id": document["id"],
                     "document_type": document["document_type"],
-                    "chunk_id": next_chunk_id,
+                    "chunk_id": chunk_id,
                     "page_number": page["page_number"],
                     "original_text": chunk,
                     "processed_text": processed,
                 })
-            next_chunk_id += 1
     return records
 
 
 def rebuild_index(db: Session):
     chunks = db.query(DocumentChunk).order_by(DocumentChunk.id).all()
     index_record = db.query(TfidfIndex).filter(TfidfIndex.id == 1).first()
-
     if not chunks:
         if index_record:
             db.delete(index_record)
@@ -52,22 +47,19 @@ def rebuild_index(db: Session):
     if index_record is None:
         index_record = TfidfIndex(id=1)
         db.add(index_record)
-
     index_record.version = (index_record.version or 0) + 1
     index_record.vocabulary = vectorizer.vocabulary_
     index_record.idf = vectorizer.idf_.tolist()
     index_record.matrix = matrix.toarray().tolist()
-    logger.info("[INDEXER] Saved %d chunks to the database", len(chunks))
 
 
 def index_document(document_id, title, document_type, pdf_bytes, db: Session):
-    document = {"id": document_id, "title": title, "document_type": document_type, "pdf_file": pdf_bytes}
-    new_records = _document_chunks(document)
+    records = _document_chunks({"id": document_id, "title": title, "document_type": document_type, "pdf_file": pdf_bytes})
     db.query(DocumentChunk).filter(
         DocumentChunk.document_id == document_id,
         DocumentChunk.document_type == document_type,
     ).delete(synchronize_session=False)
-    db.add_all([DocumentChunk(**record) for record in new_records])
+    db.add_all([DocumentChunk(**record) for record in records])
     db.flush()
     rebuild_index(db)
 
