@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -43,6 +44,22 @@ def list_documents(
         .all()
     )
     return [{"id": document.id, "title": document.title} for document in documents]
+
+
+@router.get("/{document_id}/pdf")
+def get_document_pdf(
+    document_id: int,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    document = db.query(DrugInformationDocument).filter(DrugInformationDocument.id == document_id).first()
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    return Response(
+        content=document.pdf_file,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{document.title}"'},
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -121,6 +138,22 @@ def list_safety_documents(
 ):
     documents = db.query(SafetyDocument).order_by(SafetyDocument.id.desc()).all()
     return [{"id": document.id, "title": document.title} for document in documents]
+
+
+@router.get("/safety/{document_id}/pdf")
+def get_safety_document_pdf(
+    document_id: int,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    document = db.query(SafetyDocument).filter(SafetyDocument.id == document_id).first()
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    return Response(
+        content=document.pdf_file,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{document.title}"'},
+    )
 
 
 @router.post("/safety", status_code=status.HTTP_201_CREATED)
