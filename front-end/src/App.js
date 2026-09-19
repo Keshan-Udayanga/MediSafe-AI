@@ -44,14 +44,14 @@ function AuthenticatedLayout({ user, currentView, onLogout, children }) {
 
   const navItems = isAdmin
     ? [
-        { id: "admin-chat", label: "Chatbox", icon: "💬", action: () => navigate("/admin/chat") },
-        { id: "admin-dashboard", label: "Dashboard", icon: "📊", action: () => navigate("/admin/dashboard") },
-        { id: "admin-documents", label: "Documents", icon: "📄", action: () => navigate("/admin/dashboard") }
-      ]
+      { id: "admin-chat", label: "Chatbox", icon: "💬", action: () => navigate("/admin/chat") },
+      { id: "admin-dashboard", label: "Dashboard", icon: "📊", action: () => navigate("/admin/dashboard") },
+      { id: "admin-documents", label: "Documents", icon: "📄", action: () => navigate("/admin/dashboard") }
+    ]
     : [
-        { id: "chat", label: "Chat", icon: "💬", action: () => navigate("/home") },
-        { id: "about", label: "About", icon: "ℹ️", action: () => navigate("/home") }
-      ];
+      { id: "chat", label: "Chat", icon: "💬", action: () => navigate("/home") },
+      { id: "about", label: "About", icon: "ℹ️", action: () => navigate("/home") }
+    ];
 
   return (
     <div className="app-shell">

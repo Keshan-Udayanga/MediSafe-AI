@@ -29,13 +29,13 @@ def retrieve_context(
 
         context_parts.append(
             f"""
-Document: {result['title']}
-Type: {result['document_type']}
-Relevance Score: {result['score']:.4f}
+            Document: {result['title']}
+            Type: {result['document_type']}
+            Relevance Score: {result['score']:.4f}
 
-Content:
-{result['text']}
-"""
+            Content:
+            {result['text']}
+                """
         )
 
     return {

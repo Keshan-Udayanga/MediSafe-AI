@@ -59,7 +59,7 @@ def retrieve_relevant_chunks(
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    query = " ".join(sys.argv[1:]) or "Aspirin"
+    query = " ".join(sys.argv[1:])
     results = retrieve_relevant_chunks(query)
     print(f"Query: {query}")
     print(f"Has context: {bool(results)}")
