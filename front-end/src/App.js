@@ -5,8 +5,7 @@ import {
   Routes,
   Route,
   Navigate,
-  useNavigate,
-  useLocation
+  useNavigate
 } from "react-router-dom";
 
 import {
@@ -16,6 +15,7 @@ import {
 import LoginPage from "./components/Login/loginPage";
 import ChatBox from "./components/Chat/chatBox";
 import AdminDashboard from "./components/Admin/dashboard";
+import DocumentTablePage from "./components/Admin/documentTablePage";
 
 import {
   getCurrentUser
@@ -29,7 +29,6 @@ const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 function AuthenticatedLayout({ user, currentView, onLogout, children }) {
   const navigate = useNavigate();
-  const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const isAdmin = user?.role === "admin";
 
@@ -44,35 +43,12 @@ function AuthenticatedLayout({ user, currentView, onLogout, children }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const searchParams = new URLSearchParams(location.search);
-  const docParam = searchParams.get("doc");
-
-  let activeView = currentView;
-  if (isAdmin && location.pathname === "/admin/dashboard") {
-    if (docParam === "drug") {
-      activeView = "admin-drug-docs";
-    } else if (docParam === "safety") {
-      activeView = "admin-safety-docs";
-    } else {
-      activeView = "admin-dashboard";
-    }
-  }
-
-  const openAdminDoc = (type) => {
-    if (location.pathname === "/admin/dashboard") {
-      navigate(`/admin/dashboard?doc=${type}`);
-      window.dispatchEvent(new CustomEvent("open-admin-doc", { detail: type }));
-    } else {
-      navigate(`/admin/dashboard?doc=${type}`);
-    }
-  };
-
   const navItems = isAdmin
     ? [
         { id: "admin-chat", label: "Chatbox", icon: "💬", action: () => navigate("/admin/chat") },
         { id: "admin-dashboard", label: "Dashboard", icon: "📊", action: () => navigate("/admin/dashboard") },
-        { id: "admin-drug-docs", label: "Drug Information Document", icon: "📄", action: () => openAdminDoc("drug") },
-        { id: "admin-safety-docs", label: "Safety Document", icon: "🛡️", action: () => openAdminDoc("safety") }
+        { id: "admin-drug-docs", label: "Drug Information Document", icon: "📄", action: () => navigate("/admin/drug-documents") },
+        { id: "admin-safety-docs", label: "Safety Document", icon: "🛡️", action: () => navigate("/admin/safety-documents") }
       ]
     : [
         { id: "chat", label: "Chat", icon: "💬", action: () => navigate("/home") },
@@ -94,7 +70,7 @@ function AuthenticatedLayout({ user, currentView, onLogout, children }) {
             <button
               key={item.id}
               type="button"
-              className={`nav-button ${activeView === item.id ? "active" : ""}`}
+              className={`nav-button ${currentView === item.id ? "active" : ""}`}
               onClick={item.action}
             >
               <span>{item.icon}</span>
@@ -255,6 +231,32 @@ function AppContent() {
             </AuthenticatedLayout>
           ) : (
             <Navigate to="/home" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/admin/drug-documents"
+        element={
+          user && user.role === "admin" ? (
+            <AuthenticatedLayout user={user} currentView="admin-drug-docs" onLogout={handleLogout}>
+              <DocumentTablePage type="drug" user={user} />
+            </AuthenticatedLayout>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/admin/safety-documents"
+        element={
+          user && user.role === "admin" ? (
+            <AuthenticatedLayout user={user} currentView="admin-safety-docs" onLogout={handleLogout}>
+              <DocumentTablePage type="safety" user={user} />
+            </AuthenticatedLayout>
+          ) : (
+            <Navigate to="/" replace />
           )
         }
       />
