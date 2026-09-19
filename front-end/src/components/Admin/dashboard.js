@@ -1,34 +1,103 @@
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  deleteDrugInformationDocument,
+  deleteSafetyDocument,
   getDrugInformationDocuments,
   getSafetyDocuments,
+  uploadDrugInformationDocument,
+  uploadSafetyDocument,
 } from "../Services/documentService";
 import "./dashboard.css";
 
-function AdminDashboard({ user }) {
+function AdminDashboard({ user, onLogout }) {
   const navigate = useNavigate();
-  const [drugCount, setDrugCount] = useState(null);
-  const [safetyCount, setSafetyCount] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
+  const [documentType, setDocumentType] = useState("drug");
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentActionLoading, setDocumentActionLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState("");
+  const [documentsSuccess, setDocumentsSuccess] = useState("");
+  const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    getDrugInformationDocuments()
-      .then((docs) => {
-        if (isMounted) setDrugCount(docs.length);
-      })
-      .catch(() => {});
+  const loadDocuments = async () => {
+    setDocumentsLoading(true);
+    setDocumentsError("");
 
-    getSafetyDocuments()
-      .then((docs) => {
-        if (isMounted) setSafetyCount(docs.length);
-      })
-      .catch(() => {});
+    try {
+      setDocuments(
+        await (documentType === "safety"
+          ? getSafetyDocuments()
+          : getDrugInformationDocuments())
+      );
+    } catch (error) {
+      setDocumentsError(error.message);
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const openDocuments = (type = "drug") => {
+    setDocumentType(type);
+    setDocumentsOpen(true);
+    setDocumentsSuccess("");
+    setDocumentsLoading(true);
+    setDocumentsError("");
+
+    const load = type === "safety" ? getSafetyDocuments : getDrugInformationDocuments;
+    load()
+      .then(setDocuments)
+      .catch((error) => setDocumentsError(error.message))
+      .finally(() => setDocumentsLoading(false));
+  };
+
+  const handleFileSelected = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setDocumentsError("Only PDF files are accepted.");
+      return;
+    }
+
+    setDocumentActionLoading(true);
+    setDocumentsError("");
+    setDocumentsSuccess("");
+
+    try {
+      await (documentType === "safety"
+        ? uploadSafetyDocument(file)
+        : uploadDrugInformationDocument(file));
+      await loadDocuments();
+      setDocumentsSuccess(`${file.name} was uploaded successfully.`);
+    } catch (error) {
+      setDocumentsError(error.message);
+    } finally {
+      setDocumentActionLoading(false);
+    }
+  };
+
+  const handleDelete = async (documentId, title) => {
+    if (!window.confirm(`Delete ${title}?`)) return;
+
+    setDocumentActionLoading(true);
+    setDocumentsError("");
+    setDocumentsSuccess("");
+
+    try {
+      await (documentType === "safety"
+        ? deleteSafetyDocument(documentId)
+        : deleteDrugInformationDocument(documentId));
+      await loadDocuments();
+      setDocumentsSuccess(`${title} was deleted successfully.`);
+    } catch (error) {
+      setDocumentsError(error.message);
+    } finally {
+      setDocumentActionLoading(false);
+    }
+  };
 
   return (
     <div className="admin-dashboard">
@@ -57,13 +126,7 @@ function AdminDashboard({ user }) {
 
         {/* Statistics */}
         <section className="stats-grid">
-          <div
-            className="stat-card"
-            style={{ cursor: "pointer" }}
-            onClick={() => navigate("/admin/chat")}
-            role="button"
-            tabIndex={0}
-          >
+          <div className="stat-card">
             <div className="stat-icon purple">🤖</div>
             <div>
               <span>Chatbot</span>
@@ -75,28 +138,28 @@ function AdminDashboard({ user }) {
           <div
             className="stat-card"
             style={{ cursor: "pointer" }}
-            onClick={() => navigate("/admin/drug-documents")}
+            onClick={() => openDocuments("drug")}
             role="button"
             tabIndex={0}
           >
             <div className="stat-icon blue">📄</div>
             <div>
               <span>Drug Documents</span>
-              <h3>{drugCount !== null ? `${drugCount} PDFs` : "Manage"}</h3>
+              <h3>Manage</h3>
             </div>
           </div>
 
           <div
             className="stat-card"
             style={{ cursor: "pointer" }}
-            onClick={() => navigate("/admin/safety-documents")}
+            onClick={() => openDocuments("safety")}
             role="button"
             tabIndex={0}
           >
             <div className="stat-icon green">🛡️</div>
             <div>
               <span>Safety Documents</span>
-              <h3>{safetyCount !== null ? `${safetyCount} PDFs` : "Manage"}</h3>
+              <h3>Manage</h3>
             </div>
           </div>
         </section>
@@ -147,9 +210,9 @@ function AdminDashboard({ user }) {
 
             <button
               className="secondary-btn"
-              onClick={() => navigate("/admin/drug-documents")}
+              onClick={() => openDocuments("drug")}
             >
-              View Documents Table
+              Manage Documents
               <span>→</span>
             </button>
           </div>
@@ -169,14 +232,115 @@ function AdminDashboard({ user }) {
 
             <button
               className="secondary-btn"
-              onClick={() => navigate("/admin/safety-documents")}
+              onClick={() => openDocuments("safety")}
             >
-              View Documents Table
+              Manage Documents
               <span>→</span>
             </button>
           </div>
         </section>
       </main>
+
+      {/* Modal Popup (Opened by Dashboard boxes) */}
+      {documentsOpen && (
+        <div
+          className="document-modal-backdrop"
+          role="presentation"
+          onClick={() => setDocumentsOpen(false)}
+        >
+          <section
+            className="document-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="document-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="document-modal-header">
+              <div>
+                <p className="document-modal-eyebrow">
+                  {documentType === "safety"
+                    ? "Safety Documents"
+                    : "Drug Information"}
+                </p>
+                <h2 id="document-modal-title">Manage Documents</h2>
+                <p>PDF files stored in the knowledge base.</p>
+              </div>
+              <button
+                className="modal-close-btn"
+                onClick={() => setDocumentsOpen(false)}
+                aria-label="Close document manager"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="document-modal-actions">
+              <span>
+                {documents.length} document
+                {documents.length === 1 ? "" : "s"}
+              </span>
+              <button
+                className="add-document-btn"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={documentActionLoading}
+              >
+                {documentActionLoading ? "Working..." : "+ Add New PDF"}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf,.pdf"
+                onChange={handleFileSelected}
+                hidden
+              />
+            </div>
+
+            {documentsError && (
+              <div className="document-status error">{documentsError}</div>
+            )}
+            {documentsSuccess && (
+              <div className="document-status success">{documentsSuccess}</div>
+            )}
+
+            <div className="document-list" aria-live="polite">
+              {documentsLoading ? (
+                <div className="document-empty-state">
+                  Loading documents...
+                </div>
+              ) : documents.length === 0 ? (
+                <div className="document-empty-state">
+                  No{" "}
+                  {documentType === "safety"
+                    ? "safety"
+                    : "drug information"}{" "}
+                  PDFs have been uploaded yet.
+                </div>
+              ) : (
+                documents.map((document) => (
+                  <div className="document-row" key={document.id}>
+                    <div className="document-file-icon">PDF</div>
+                    <span
+                      className="document-title"
+                      title={document.title}
+                    >
+                      {document.title}
+                    </span>
+                    <button
+                      className="delete-document-btn"
+                      onClick={() =>
+                        handleDelete(document.id, document.title)
+                      }
+                      disabled={documentActionLoading}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
