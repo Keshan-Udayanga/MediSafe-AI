@@ -10,6 +10,26 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+export function getDrugDocumentPdfUrl(documentId) {
+  return `${API_BASE_URL}/api/admin/drug-information-documents/${documentId}/pdf`;
+}
+
+export function getSafetyDocumentPdfUrl(documentId) {
+  return `${API_BASE_URL}/api/admin/drug-information-documents/safety/${documentId}/pdf`;
+}
+
+export async function fetchDocumentPdfBlob(documentId, isSafety) {
+  const url = isSafety
+    ? getSafetyDocumentPdfUrl(documentId)
+    : getDrugDocumentPdfUrl(documentId);
+
+  const response = await fetch(url, { headers: authHeaders() });
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, "Failed to load PDF"));
+  }
+  return response.blob();
+}
+
 export async function getDrugInformationDocuments() {
   const response = await fetch(`${API_BASE_URL}/api/admin/drug-information-documents`, {
     headers: authHeaders(),
