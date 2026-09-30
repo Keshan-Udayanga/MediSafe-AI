@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import MessageBubble from "./messageBubble.js";
 import { askOrchestrator } from "../Services/chatService.js";
+import { getChatHistoryKey, loadChatHistory, saveChatHistory } from "./chatHistory.js";
 import "./chatBox.css";
 
 function ChatBox({ user, onLogout }) {
-    const [messages, setMessages] = useState([]);
+    const historyKey = getChatHistoryKey(user);
+    const [messages, setMessages] = useState(() => loadChatHistory(historyKey));
     const [inputText, setInputText] = useState("");
     const [loading, setLoading] = useState(false);
     const messagesEndRef = useRef(null);
@@ -12,6 +14,10 @@ function ChatBox({ user, onLogout }) {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
+
+    useEffect(() => {
+        saveChatHistory(historyKey, messages);
+    }, [historyKey, messages]);
 
     const getCurrentTime = () => {
         return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });

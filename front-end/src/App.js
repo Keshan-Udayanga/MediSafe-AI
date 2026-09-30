@@ -14,6 +14,7 @@ import {
 
 import LoginPage from "./components/Login/loginPage";
 import ChatBox from "./components/Chat/chatBox";
+import { clearChatHistory } from "./components/Chat/chatHistory.js";
 import AdminDashboard from "./components/Admin/dashboard";
 import DocumentTablePage from "./components/Admin/documentTablePage";
 
@@ -133,6 +134,7 @@ function AppContent() {
         const token = localStorage.getItem("access_token");
 
         if (!token) {
+          clearChatHistory();
           setLoading(false);
           return;
         }
@@ -143,11 +145,13 @@ function AppContent() {
           setUser(currentUser);
         } else {
           localStorage.removeItem("access_token");
+          clearChatHistory();
           setUser(null);
         }
       } catch (error) {
         console.error("Failed to restore session:", error);
         localStorage.removeItem("access_token");
+        clearChatHistory();
         setUser(null);
       } finally {
         setLoading(false);
@@ -170,6 +174,7 @@ function AppContent() {
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
+    clearChatHistory(user);
     setUser(null);
     navigate("/");
   };
