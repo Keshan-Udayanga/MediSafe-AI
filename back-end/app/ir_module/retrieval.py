@@ -23,22 +23,26 @@ def retrieve_relevant_chunks(
     min_similarity: float = RAG_THRESHOLD,
 ) -> List[Dict]:
     with SessionLocal() as db:
+
+        # Retrieve the TF-IDF index from the database
         index = db.query(TfidfIndex).filter(TfidfIndex.id == 1).first()
         if not index:
             logger.warning("[RETRIEVAL] No database TF-IDF index available")
             return []
 
+        # Preprocess the query and compute its TF-IDF vector
         query_processed = preprocess_text(query)
         if not query_processed:
             return []
 
-        vectorizer = TfidfVectorizer(vocabulary=index.vocabulary)
-        vectorizer.fit([" ".join(index.vocabulary.keys())])
-        vectorizer._tfidf.idf_ = np.asarray(index.idf, dtype=float)
+        # Compute cosine similarity between the query vector and the document chunk vectors
+        vectorizer = TfidfVectorizer(vocabulary=index.vocabulary) # Use the vocabulary from the database index
+        vectorizer.fit([" ".join(index.vocabulary.keys())]) # Fit the vectorizer with the vocabulary from the database index
+        vectorizer._tfidf.idf_ = np.asarray(index.idf, dtype=float) # Set the IDF values from the database index
         vectorizer.fixed_vocabulary_ = True
-        query_vector = vectorizer.transform([query_processed])
-        matrix = np.asarray(index.matrix, dtype=float)
-        similarities = cosine_similarity(query_vector, matrix)[0]
+        query_vector = vectorizer.transform([query_processed]) # Compute the query vector using the preprocessed query
+        matrix = np.asarray(index.matrix, dtype=float) 
+        similarities = cosine_similarity(query_vector, matrix)[0] # Compute cosine similarity between the query vector and the document chunk vectors
         chunks = db.query(DocumentChunk).order_by(DocumentChunk.id).all()
         ranked = sorted(enumerate(similarities), key=lambda item: item[1], reverse=True)
         logger.info("[RETRIEVAL] Query: %s; indexed chunks: %d", query, len(chunks))

@@ -28,8 +28,8 @@ function ChatBox({ user, onLogout }) {
         setLoading(true);
 
         try {
-            // ← Query එක කෙලින්ම Orchestrator Agent එකට යනවා
-            // Orchestrator ම බලනවා: Drug Info ද, Safety ද කියලා, ඕන agent එකට route කරනවා
+
+            //  Call the orchestrator service to get a response for the user's question
             const response = await askOrchestrator(questionText);
 
             const agentMessage = {

@@ -48,6 +48,7 @@ def preprocess_text(text: str) -> str:
         if token not in STOP_WORDS
     ]
 
+    # Return the preprocessed text as a single string with tokens joined by spaces
     return " ".join(filtered_tokens)
 
 

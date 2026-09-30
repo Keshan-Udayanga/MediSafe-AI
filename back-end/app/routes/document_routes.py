@@ -162,18 +162,23 @@ async def upload_safety_document(
     _: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    # Validate the uploaded file
     filename = (file.filename or "").strip()
     if not filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF files are accepted")
 
+    # Read the file content and validate that it is a PDF
     pdf_bytes = await file.read()
     if not pdf_bytes.startswith(b"%PDF-"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The selected file is not a valid PDF")
 
+    # Create a new SafetyDocument instance and add it to the database
     document = SafetyDocument(title=filename, pdf_file=pdf_bytes)
     db.add(document)
     try:
+        # Flush the session to get the document ID, index the document, and commit the transaction
         db.flush()
+        # Index the document
         index_document(document.id, document.title, "safety", pdf_bytes, db)
         db.commit()
     except Exception as error:
