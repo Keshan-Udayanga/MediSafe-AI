@@ -4,6 +4,7 @@ from langchain.agents import create_agent
 from app.agents.config import (
     drug_info_config,
     drug_interaction_config,
+    query_corrector_config,
     AgentConfig,
 )
 
@@ -51,4 +52,12 @@ def get_drug_safety_agent():
 
     return create_gemini_agent(
         drug_interaction_config
+    )
+
+def get_query_corrector_agent() -> ChatGoogleGenerativeAI:
+    """Returns the dedicated underlying Gemini model instance ready for structured calls."""
+    return ChatGoogleGenerativeAI(
+        model=query_corrector_config.model_name,
+        temperature=query_corrector_config.temperature,
+        max_retries=2
     )
